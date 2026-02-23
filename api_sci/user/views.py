@@ -10,7 +10,6 @@ from rest_framework import status
 from .serializers import RegisterSerializer, UserUpdateSerializer
 from django.shortcuts import get_object_or_404
 
-
 class UserUpdateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -63,7 +62,6 @@ class LoginView(APIView):
 
         return Response({"error": "Credenciales inválidas"}, status=400)
 
-
 class RegisterView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -104,12 +102,12 @@ class UserListView(APIView):
 
         return Response(serializer.data)
     
-class UserUpdateView(APIView):
+class UserProfileUpdateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def put(self, request):
 
-        user = request.user  # 👈 Usuario autenticado automáticamente
+        user = request.user  #  Usuario autenticado automáticamente
 
         serializer = UserUpdateSerializer(
             user,
