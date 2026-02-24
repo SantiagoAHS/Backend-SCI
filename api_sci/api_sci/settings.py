@@ -43,6 +43,7 @@ INSTALLED_APPS = [
 
     'user',
     'areas',
+    'activos.apps.ActivosConfig',
 
 ]
 
