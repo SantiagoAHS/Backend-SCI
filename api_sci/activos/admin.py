@@ -23,8 +23,8 @@ class ValorCaracteristicaInline(admin.TabularInline):
 
 @admin.register(Activo)
 class ActivoAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'tipo_activo', 'area', 'responsable_directo', 'activo')
-    list_filter = ('tipo_activo', 'area', 'activo')
+    list_display = ('nombre', 'tipo_activo', 'area', 'estado', 'fecha_registro')
+    list_filter = ('tipo_activo', 'area', 'estado')
     search_fields = ('nombre',)
     inlines = [ValorCaracteristicaInline]
 

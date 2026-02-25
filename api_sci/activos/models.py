@@ -1,5 +1,4 @@
 from django.db import models
-from django.conf import settings
 
 
 class TipoActivo(models.Model):
@@ -10,6 +9,13 @@ class TipoActivo(models.Model):
 
 
 class Activo(models.Model):
+    ESTADOS = [
+        ('disponible', 'Disponible'),
+        ('asignado', 'Asignado'),
+        ('mantenimiento', 'En mantenimiento'),
+        ('baja', 'Baja'),
+    ]
+
     nombre = models.CharField(max_length=150)
     descripcion = models.TextField(blank=True, null=True)
 
@@ -20,21 +26,18 @@ class Activo(models.Model):
     )
 
     area = models.ForeignKey(
-        'areas.Area',  # suponiendo que tu app de Area se llama areas
+        'areas.Area',
         on_delete=models.PROTECT,
         related_name='activos'
     )
 
-    responsable_directo = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='activos_asignados'
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADOS,
+        default='disponible'
     )
 
     fecha_registro = models.DateTimeField(auto_now_add=True)
-    activo = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.nombre} ({self.tipo_activo.nombre})"
