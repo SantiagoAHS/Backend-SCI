@@ -10,9 +10,13 @@ class CaracteristicaInline(admin.TabularInline):
 
 @admin.register(TipoActivo)
 class TipoActivoAdmin(admin.ModelAdmin):
-    list_display = ('nombre',)
+    list_display = ('nombre', 'activo')
     search_fields = ('nombre',)
+    list_filter = ('activo',)
     inlines = [CaracteristicaInline]
+
+    def get_queryset(self, request):
+        return TipoActivo.all_objects.all()
 
 
 # 🔹 Inline para los valores dinámicos dentro del Activo

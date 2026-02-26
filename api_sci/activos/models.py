@@ -1,12 +1,18 @@
 from django.db import models
 
+class TipoActivoManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(activo=True)
 
 class TipoActivo(models.Model):
-    nombre = models.CharField(max_length=100, unique=True)
+    nombre = models.CharField(max_length=100)
+    activo = models.BooleanField(default=True)
+
+    objects = TipoActivoManager()      # Solo activos
+    all_objects = models.Manager()     # Todos (incluye desactivados)
 
     def __str__(self):
         return self.nombre
-
 
 class Activo(models.Model):
     ESTADOS = [

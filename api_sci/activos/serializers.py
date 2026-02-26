@@ -2,11 +2,11 @@ from rest_framework import serializers
 from .models import TipoActivo, Caracteristica, Activo, ValorCaracteristica
 from rest_framework import serializers
 
+
 class CaracteristicaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Caracteristica
         fields = ['id', 'nombre']
-
 
 class TipoActivoSerializer(serializers.ModelSerializer):
     caracteristicas = CaracteristicaSerializer(many=True)
@@ -24,7 +24,29 @@ class TipoActivoSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         caracteristicas_data = validated_data.pop('caracteristicas')
-        tipo_activo = TipoActivo.objects.create(**validated_data)
+        nombre = validated_data['nombre'].strip()
+
+        # 🔎 Buscar aunque esté desactivado (case insensitive)
+        tipo_existente = TipoActivo.all_objects.filter(
+            nombre__iexact=nombre
+        ).first()
+
+        if tipo_existente:
+            if not tipo_existente.activo:
+                # Reactivar
+                tipo_existente.activo = True
+                tipo_existente.nombre = nombre  # normaliza formato
+                tipo_existente.save()
+                return tipo_existente
+            else:
+                raise serializers.ValidationError(
+                    "Ya existe un tipo de activo con ese nombre."
+                )
+
+        # Crear nuevo si no existe ninguno
+        tipo_activo = TipoActivo.objects.create(
+            nombre=nombre
+        )
 
         for caracteristica in caracteristicas_data:
             Caracteristica.objects.create(
@@ -88,3 +110,28 @@ class ActivoCreateSerializer(serializers.ModelSerializer):
             )
 
         return activo
+    
+class ValorCaracteristicaSerializer(serializers.ModelSerializer):
+    caracteristica = CaracteristicaSerializer()
+
+    class Meta:
+        model = ValorCaracteristica
+        fields = ['id', 'caracteristica', 'valor']
+
+
+class ActivoListSerializer(serializers.ModelSerializer):
+    tipo_activo = serializers.StringRelatedField()
+    area = serializers.StringRelatedField()
+    valores = ValorCaracteristicaSerializer(many=True)  # 🔥 sin source
+
+    class Meta:
+        model = Activo
+        fields = [
+            'id',
+            'nombre',
+            'descripcion',
+            'tipo_activo',
+            'area',
+            'estado',
+            'valores'
+        ]
