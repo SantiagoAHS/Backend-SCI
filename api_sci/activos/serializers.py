@@ -26,7 +26,7 @@ class TipoActivoSerializer(serializers.ModelSerializer):
         caracteristicas_data = validated_data.pop('caracteristicas')
         nombre = validated_data['nombre'].strip()
 
-        # 🔎 Buscar aunque esté desactivado (case insensitive)
+        # Buscar aunque esté desactivado (case insensitive)
         tipo_existente = TipoActivo.all_objects.filter(
             nombre__iexact=nombre
         ).first()
@@ -122,7 +122,7 @@ class ValorCaracteristicaSerializer(serializers.ModelSerializer):
 class ActivoListSerializer(serializers.ModelSerializer):
     tipo_activo = serializers.StringRelatedField()
     area = serializers.StringRelatedField()
-    valores = ValorCaracteristicaSerializer(many=True)  # 🔥 sin source
+    valores = ValorCaracteristicaSerializer(many=True) 
 
     class Meta:
         model = Activo

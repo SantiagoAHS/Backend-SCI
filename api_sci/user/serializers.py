@@ -40,7 +40,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         password = validated_data.pop("password")
         user = User(**validated_data)
-        user.set_password(password)  # 🔐 encripta contraseña
+        user.set_password(password)  # encripta contraseña
         user.save()
         return user
 
@@ -57,7 +57,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         telefono = validated_data.get("telefono", None)
 
         if password:
-            instance.set_password(password)  # 🔐 encripta
+            instance.set_password(password)  # encripta
 
         if telefono is not None:
             instance.telefono = telefono
@@ -65,3 +65,21 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+class AdminUserUpdateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = [
+            "username",
+            "numero_empleado",
+            "rol",
+            "cargo",
+        ]
+
+    def update(self, instance, validated_data):
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()
+        return instance

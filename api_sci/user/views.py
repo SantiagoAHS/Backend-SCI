@@ -4,10 +4,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
 from .models import User
-from .serializers import UserSerializer
+from .serializers import UserSerializer, RegisterSerializer, UserUpdateSerializer, AdminUserUpdateSerializer
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
-from .serializers import RegisterSerializer, UserUpdateSerializer
 from django.shortcuts import get_object_or_404
 
 class UserUpdateView(APIView):
@@ -15,7 +14,7 @@ class UserUpdateView(APIView):
 
     def put(self, request, pk):
 
-        # 🔐 Solo admin puede editar usuarios
+        # Solo admin puede editar usuarios
         if request.user.rol != "admin":
             return Response(
                 {"error": "No autorizado"},
@@ -24,7 +23,7 @@ class UserUpdateView(APIView):
 
         user = get_object_or_404(User, pk=pk)
 
-        serializer = UserUpdateSerializer(user, data=request.data, partial=True)
+        serializer = AdminUserUpdateSerializer(user, data=request.data, partial=True)
 
         if serializer.is_valid():
             serializer.save()
@@ -67,7 +66,7 @@ class RegisterView(APIView):
 
     def post(self, request):
 
-        # 🔐 Solo admin puede crear usuarios
+        # Solo admin puede crear usuarios
         if request.user.rol != "admin":
             return Response(
                 {"error": "No autorizado"},
@@ -90,7 +89,7 @@ class UserListView(APIView):
 
     def get(self, request):
 
-        # 🔐 Solo admin puede ver la lista
+        # Solo admin puede ver la lista
         if request.user.rol != "admin":
             return Response(
                 {"error": "No autorizado"},
@@ -121,4 +120,30 @@ class UserProfileUpdateView(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class UserDeleteView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    def delete(self, request, pk):
+
+        # Solo admin puede eliminar usuarios
+        if request.user.rol != "admin":
+            return Response(
+                {"error": "No autorizado"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        user = get_object_or_404(User, pk=pk)
+
+        # Opcional: evitar que el admin se elimine a sí mismo
+        if user == request.user:
+            return Response(
+                {"error": "No puedes eliminar tu propio usuario"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user.delete()
+
+        return Response(
+            {"message": "Usuario eliminado correctamente"},
+            status=status.HTTP_200_OK
+        )
