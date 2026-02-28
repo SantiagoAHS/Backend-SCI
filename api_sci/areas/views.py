@@ -11,7 +11,7 @@ class AreaCreateView(APIView):
 
     def post(self, request):
 
-        # 🔐 Solo admin puede crear áreas
+        # Solo admin puede crear áreas
         if request.user.rol != "admin":
             return Response(
                 {"error": "No autorizado"},
@@ -26,12 +26,12 @@ class AreaCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 🔎 Buscar ignorando mayúsculas/minúsculas
+        # Buscar ignorando mayúsculas/minúsculas
         area_existente = Area.objects.filter(nombre__iexact=nombre).first()
 
         if area_existente:
 
-            # ♻️ Si existe pero está inactiva → reactivar
+            # Si existe pero está inactiva → reactivar
             if not area_existente.activo:
                 area_existente.activo = True
                 area_existente.descripcion = request.data.get("descripcion")
@@ -46,13 +46,13 @@ class AreaCreateView(APIView):
                     status=status.HTTP_200_OK
                 )
 
-            # ❌ Si ya está activa
+            # Si ya está activa
             return Response(
                 {"error": "Ya existe un área con ese nombre"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # ✅ Si no existe → crear normal
+        # Si no existe → crear normal
         serializer = AreaSerializer(data=request.data)
 
         if serializer.is_valid():
@@ -82,9 +82,13 @@ class AreaListView(APIView):
 class AreaUpdateView(APIView):
     permission_classes = [IsAuthenticated]
 
+    def get(self, request, pk):
+        area = get_object_or_404(Area, pk=pk)
+        serializer = AreaSerializer(area)
+        return Response(serializer.data)
+
     def put(self, request, pk):
 
-        # 🔐 Solo admin puede editar
         if request.user.rol != "admin":
             return Response(
                 {"error": "No autorizado"},
@@ -96,7 +100,7 @@ class AreaUpdateView(APIView):
         serializer = AreaSerializer(
             area,
             data=request.data,
-            partial=True  # permite actualizar solo campos enviados
+            partial=True
         )
 
         if serializer.is_valid():
@@ -110,7 +114,7 @@ class AreaDeleteView(APIView):
 
     def delete(self, request, pk):
 
-        # 🔐 Solo admin puede eliminar
+        # Solo admin puede eliminar
         if request.user.rol != "admin":
             return Response(
                 {"error": "No autorizado"},
@@ -119,7 +123,7 @@ class AreaDeleteView(APIView):
 
         area = get_object_or_404(Area, pk=pk)
 
-        # 🔄 Soft delete
+        # Soft delete
         area.activo = False
         area.save()
 
