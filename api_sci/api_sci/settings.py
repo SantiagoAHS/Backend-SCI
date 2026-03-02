@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'user',
     'areas',
     'activos',
+    'prestamos',
 
 ]
 
