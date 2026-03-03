@@ -2,7 +2,6 @@ from django.db import models
 from django.utils import timezone
 from datetime import timedelta
 
-
 class Prestamo(models.Model):
 
     TIPO_PRESTAMO_CHOICES = [
@@ -64,3 +63,18 @@ class Prestamo(models.Model):
 
     def __str__(self):
         return f"{self.activo} - {self.responsable_nombre} ({self.estado})"
+    
+@property
+def estado_calculado(self):
+    if self.estado in ["finalizado", "cancelado"]:
+        return self.estado
+
+    if self.fecha_fin < timezone.now().date():
+        return "vencido"
+
+    return "activo"
+
+
+@property
+def dias_restantes(self):
+    return (self.fecha_fin - timezone.now().date()).days
