@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'areas',
     'activos',
     'prestamos',
+    'mantenimientos',
 
 ]
 
