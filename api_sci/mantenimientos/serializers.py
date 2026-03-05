@@ -3,7 +3,6 @@ from .models import Mantenimiento
 from django.utils import timezone
 from activos.models import Activo
 
-
 class MantenimientoPreventivoSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -68,3 +67,31 @@ class CambiarEstadoMantenimientoSerializer(serializers.ModelSerializer):
         instance.save()
 
         return instance
+
+class MantenimientoListSerializer(serializers.ModelSerializer):
+    activo = serializers.CharField(source="activo.nombre", read_only=True)
+    codigo_activo = serializers.CharField(source="activo.codigo", read_only=True)
+
+    tipo = serializers.CharField()
+    estado = serializers.CharField()
+    fecha_ingreso = serializers.DateField()
+    fecha_finalizacion = serializers.DateField(allow_null=True)
+
+    responsable = serializers.CharField()
+    costo = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
+    descripcion_problema = serializers.CharField(allow_blank=True, allow_null=True)
+
+    class Meta:
+        model = Mantenimiento
+        fields = [
+            "id",
+            "activo",
+            "codigo_activo",
+            "tipo",
+            "estado",
+            "fecha_ingreso",
+            "fecha_finalizacion",
+            "responsable",
+            "costo",
+            "descripcion_problema",
+        ]

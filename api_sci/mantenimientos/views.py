@@ -1,7 +1,7 @@
-from rest_framework.generics import CreateAPIView
+from rest_framework.generics import CreateAPIView, ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from .models import Mantenimiento
-from .serializers import MantenimientoPreventivoSerializer, CambiarEstadoMantenimientoSerializer
+from .serializers import MantenimientoPreventivoSerializer, CambiarEstadoMantenimientoSerializer, MantenimientoListSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -45,3 +45,8 @@ class GenerarPreventivosAutomaticosView(APIView):
         return Response({
             "mensaje": "Mantenimientos preventivos generados correctamente"
         })
+    
+class MantenimientoListView(ListAPIView):
+    queryset = Mantenimiento.objects.all().select_related("activo")
+    serializer_class = MantenimientoListSerializer
+    permission_classes = [IsAuthenticated]
