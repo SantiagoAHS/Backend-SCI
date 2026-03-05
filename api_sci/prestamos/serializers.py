@@ -37,9 +37,26 @@ class PrestamoListSerializer(serializers.ModelSerializer):
     estado_calculado = serializers.SerializerMethodField()
     dias_restantes = serializers.SerializerMethodField()
 
+    # datos del activo
+    activo_nombre = serializers.CharField(source="activo.nombre", read_only=True)
+    activo_tipo = serializers.CharField(source="activo.tipo", read_only=True)
+
     class Meta:
         model = Prestamo
-        fields = "__all__"  
+        fields = [
+            "id",
+            "activo",
+            "activo_nombre",
+            "activo_tipo",
+            "responsable_nombre",
+            "tipo_prestamo",
+            "estado",
+            "estado_calculado",
+            "fecha_inicio",
+            "fecha_fin",
+            "dias_restantes",
+            "area",
+        ]
 
     def get_estado_calculado(self, obj):
         if obj.estado in ["finalizado", "cancelado"]:

@@ -1,4 +1,6 @@
 from django.db import models
+from django.utils import timezone
+from datetime import timedelta
 
 class TipoActivoManager(models.Manager):
     def get_queryset(self):
@@ -43,10 +45,32 @@ class Activo(models.Model):
         default='disponible'
     )
 
+    # Cada cuantos días hacer mantenimiento
+    frecuencia_mantenimiento = models.IntegerField(
+        default=60,
+        help_text="Cada cuantos días se debe hacer mantenimiento preventivo"
+    )
+
     fecha_registro = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.nombre} ({self.tipo_activo.nombre})"
+    
+    def necesita_mantenimiento(self):
+
+        ultimo_mantenimiento = self.mantenimientos.filter(
+            tipo="preventivo",
+            estado="completado"
+        ).order_by("-fecha_finalizacion").first()
+
+        if ultimo_mantenimiento and ultimo_mantenimiento.fecha_finalizacion:
+            fecha_base = ultimo_mantenimiento.fecha_finalizacion
+        else:
+            fecha_base = self.fecha_registro.date()
+
+        proximo = fecha_base + timedelta(days=self.frecuencia_mantenimiento)
+
+        return timezone.now().date() >= proximo
 
 
 class Caracteristica(models.Model):
@@ -78,3 +102,4 @@ class ValorCaracteristica(models.Model):
 
     def __str__(self):
         return f"{self.activo.nombre} - {self.caracteristica.nombre}"
+    

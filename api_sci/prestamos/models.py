@@ -42,7 +42,7 @@ class Prestamo(models.Model):
     )
 
     fecha_inicio = models.DateField(default=timezone.now)
-    fecha_fin = models.DateField(blank=True)
+    fecha_fin = models.DateField(blank=True, null=True)
 
     estado = models.CharField(
         max_length=20,
