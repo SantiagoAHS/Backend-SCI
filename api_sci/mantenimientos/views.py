@@ -1,13 +1,12 @@
-from rest_framework.generics import CreateAPIView, ListAPIView
+from rest_framework.generics import CreateAPIView, ListAPIView, UpdateAPIView
 from rest_framework.permissions import IsAuthenticated
 from .models import Mantenimiento
-from .serializers import MantenimientoPreventivoSerializer, CambiarEstadoMantenimientoSerializer, MantenimientoListSerializer
+from .serializers import MantenimientoPreventivoSerializer, CambiarEstadoMantenimientoSerializer, MantenimientoListSerializer, EditarMantenimientoSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from .services import generar_mantenimientos_preventivos
-
 
 class MantenimientoPreventivoCreateView(CreateAPIView):
     queryset = Mantenimiento.objects.all()
@@ -50,3 +49,8 @@ class MantenimientoListView(ListAPIView):
     queryset = Mantenimiento.objects.all().select_related("activo")
     serializer_class = MantenimientoListSerializer
     permission_classes = [IsAuthenticated]
+
+class EditarMantenimientoView(UpdateAPIView):
+    queryset = Mantenimiento.objects.all()
+    serializer_class = EditarMantenimientoSerializer
+    lookup_field = "id"

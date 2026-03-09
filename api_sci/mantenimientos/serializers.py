@@ -95,3 +95,13 @@ class MantenimientoListSerializer(serializers.ModelSerializer):
             "costo",
             "descripcion_problema",
         ]
+
+class EditarMantenimientoSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Mantenimiento
+        fields = [
+            "responsable",
+            "descripcion_problema",
+            "costo",
+        ]
