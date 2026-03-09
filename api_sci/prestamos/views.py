@@ -7,6 +7,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from datetime import timedelta
 
 
 class PrestamoCreateView(CreateAPIView):
@@ -49,3 +51,48 @@ class FinalizarPrestamoView(APIView):
             {"detail": "Préstamo finalizado correctamente."},
             status=status.HTTP_200_OK
         )
+    
+class NotificacionesPrestamosView(APIView):
+
+    def get(self, request):
+
+        hoy = timezone.now().date()
+        limite = hoy + timedelta(days=2)
+
+        prestamos = Prestamo.objects.exclude(
+            estado__in=["finalizado", "cancelado"]
+        )
+
+        proximos = [
+            p for p in prestamos
+            if hoy <= p.fecha_fin <= limite
+        ]
+
+        vencidos = [
+            p for p in prestamos
+            if p.fecha_fin < hoy
+        ]
+
+        data = {
+            "prestamos_por_vencer": [
+                {
+                    "id": p.id,
+                    "activo": str(p.activo),
+                    "responsable": p.responsable_nombre,
+                    "fecha_fin": p.fecha_fin,
+                    "dias_restantes": p.dias_restantes
+                }
+                for p in proximos
+            ],
+            "prestamos_vencidos": [
+                {
+                    "id": p.id,
+                    "activo": str(p.activo),
+                    "responsable": p.responsable_nombre,
+                    "fecha_fin": p.fecha_fin
+                }
+                for p in vencidos
+            ]
+        }
+
+        return Response(data)

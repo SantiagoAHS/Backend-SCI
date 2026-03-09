@@ -74,7 +74,6 @@ def estado_calculado(self):
 
     return "activo"
 
-
 @property
 def dias_restantes(self):
     return (self.fecha_fin - timezone.now().date()).days
