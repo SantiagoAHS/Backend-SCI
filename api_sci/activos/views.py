@@ -3,6 +3,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import PermissionDenied
+from django.db import transaction
+from datetime import datetime
 
 from django.db.models import Count
 from django.http import HttpResponse
@@ -13,13 +15,12 @@ from reportlab.lib.pagesizes import letter
 import json
 
 
-from .models import TipoActivo, Activo
+from .models import TipoActivo, Activo, Caracteristica, OpcionCaracteristica, ValorCaracteristica
 from .serializers import (
     TipoActivoSerializer,
     ActivoCreateSerializer,
     ActivoListSerializer
 )
-
 
 # 🔹 Listar y crear tipos de activo
 class TipoActivoListCreateView(generics.ListCreateAPIView):
@@ -32,8 +33,9 @@ class TipoActivoListCreateView(generics.ListCreateAPIView):
             raise PermissionDenied("No autorizado")
         serializer.save()
 
-# 🔹 Crear activo con características dinámicas
+# 🔹 Crear activo con validación de características
 class ActivoCreateView(generics.CreateAPIView):
+
     queryset = Activo.objects.all()
     serializer_class = ActivoCreateSerializer
     permission_classes = [IsAuthenticated]
@@ -44,24 +46,17 @@ class ActivoCreateView(generics.CreateAPIView):
 
         valores = data.get("valores")
 
-        # 🔹 convertir JSON string a lista real
+        # 🔹 convertir JSON string a lista
         if isinstance(valores, str):
             valores = json.loads(valores)
-
-        print("VALORES ENVIADOS A SERIALIZER:", valores)
 
         serializer = self.get_serializer(data=data)
 
         if not serializer.is_valid():
-            print("ERRORES SERIALIZER:", serializer.errors)
             return Response(serializer.errors, status=400)
 
-        # 🔹 guardar activo primero
-        activo = serializer.save()
-
-        # 🔹 guardar características manualmente
+        # 🔹 VALIDAR TODO ANTES DE GUARDAR
         if valores:
-            from .models import Caracteristica, OpcionCaracteristica, ValorCaracteristica
 
             for v in valores:
 
@@ -69,19 +64,159 @@ class ActivoCreateView(generics.CreateAPIView):
                     id=int(v["caracteristica"])
                 )
 
+                valor_texto = v.get("valor_texto")
                 opcion = None
 
-                if v.get("opcion"):
-                    opcion = OpcionCaracteristica.objects.get(
-                        id=int(v["opcion"])
+                tipo = caracteristica.tipo_dato
+                tamano = caracteristica.tamano
+
+                # 🔹 TEXTO
+                if tipo == "text":
+
+                    if valor_texto is None:
+                        continue
+
+                    if tamano and len(valor_texto) > tamano:
+                        return Response(
+                            {
+                                "error": f"{caracteristica.nombre} excede el tamaño máximo ({tamano})."
+                            },
+                            status=400
+                        )
+
+                # 🔹 ENTERO
+                elif tipo == "int":
+
+                    try:
+                        int(valor_texto)
+                    except:
+                        return Response(
+                            {
+                                "error": f"{caracteristica.nombre} debe ser un número entero."
+                            },
+                            status=400
+                        )
+
+                    if tamano and len(str(valor_texto)) > tamano:
+                        return Response(
+                            {
+                                "error": f"{caracteristica.nombre} excede {tamano} dígitos."
+                            },
+                            status=400
+                        )
+
+                # 🔹 DECIMAL
+                elif tipo == "float":
+
+                    try:
+                        float(valor_texto)
+                    except:
+                        return Response(
+                            {
+                                "error": f"{caracteristica.nombre} debe ser un número decimal."
+                            },
+                            status=400
+                        )
+
+                    if tamano and len(str(valor_texto).replace(".", "")) > tamano:
+                        return Response(
+                            {
+                                "error": f"{caracteristica.nombre} excede {tamano} dígitos."
+                            },
+                            status=400
+                        )
+
+                # 🔹 FECHA
+                elif tipo == "date":
+
+                    if not valor_texto:
+                        return Response(
+                            {"error": f"{caracteristica.nombre} requiere una fecha."},
+                            status=400
+                        )
+
+                    try:
+                        fecha = str(valor_texto).strip()
+
+                        # si viene con hora
+                        if "T" in fecha:
+                            fecha = fecha.split("T")[0]
+
+                        datetime.strptime(fecha, "%Y-%m-%d")
+
+                        # 🔹 guardar fecha limpia
+                        v["valor_texto"] = fecha
+
+                    except ValueError:
+                        return Response(
+                            {
+                                "error": f"{caracteristica.nombre} debe ser una fecha válida (YYYY-MM-DD)."
+                            },
+                            status=400
+                        )
+
+                # 🔹 BOOLEANO
+                elif tipo == "boolean":
+
+                    if str(valor_texto).lower() not in ["true", "false", "1", "0"]:
+                        return Response(
+                            {
+                                "error": f"{caracteristica.nombre} debe ser verdadero o falso."
+                            },
+                            status=400
+                        )
+
+                # 🔹 SELECT
+                elif tipo == "select":
+
+                    if v.get("opcion"):
+
+                        opcion = OpcionCaracteristica.objects.get(
+                            id=int(v["opcion"])
+                        )
+
+                        if opcion.caracteristica.id != caracteristica.id:
+                            return Response(
+                                {
+                                    "error": f"Opción inválida para {caracteristica.nombre}."
+                                },
+                                status=400
+                            )
+
+                    else:
+                        return Response(
+                            {
+                                "error": f"Debes seleccionar una opción para {caracteristica.nombre}."
+                            },
+                            status=400
+                        )
+
+        # 🔹 GUARDAR SOLO SI TODO ES VÁLIDO
+        with transaction.atomic():
+
+            activo = serializer.save()
+
+            if valores:
+
+                for v in valores:
+
+                    caracteristica = Caracteristica.objects.get(
+                        id=int(v["caracteristica"])
                     )
 
-                ValorCaracteristica.objects.create(
-                    activo=activo,
-                    caracteristica=caracteristica,
-                    valor_texto=v.get("valor_texto"),
-                    opcion=opcion
-                )
+                    opcion = None
+
+                    if v.get("opcion"):
+                        opcion = OpcionCaracteristica.objects.get(
+                            id=int(v["opcion"])
+                        )
+
+                    ValorCaracteristica.objects.create(
+                        activo=activo,
+                        caracteristica=caracteristica,
+                        valor_texto=v.get("valor_texto"),
+                        opcion=opcion
+                    )
 
         return Response(
             ActivoListSerializer(activo).data,

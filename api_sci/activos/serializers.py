@@ -27,9 +27,28 @@ class CaracteristicaSerializer(serializers.ModelSerializer):
             'nombre',
             'tipo_dato',
             'obligatorio',
+            'tamano',
             'opciones'
         ]
 
+    def validate(self, data):
+
+        tipo = data.get('tipo_dato')
+        tamano = data.get('tamano')
+
+        if tipo in ['texto', 'numero']:
+
+            if not tamano:
+                raise serializers.ValidationError(
+                    "Debes especificar el tamaño para características de texto o número."
+                )
+
+        if tipo == 'opcion' and tamano:
+            raise serializers.ValidationError(
+                "Las características de tipo opción no deben tener tamaño."
+            )
+
+        return data
 
 # 🔹 Tipo de activo
 class TipoActivoSerializer(serializers.ModelSerializer):

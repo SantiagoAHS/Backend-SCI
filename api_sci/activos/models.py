@@ -113,6 +113,8 @@ class Caracteristica(models.Model):
         help_text="Indica si esta característica es obligatoria"
     )
 
+    tamano = models.IntegerField(null=True, blank=True)
+
     def __str__(self):
         return f"{self.tipo_activo.nombre} - {self.nombre}"
 
