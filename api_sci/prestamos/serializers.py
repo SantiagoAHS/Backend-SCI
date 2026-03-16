@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Prestamo
 from django.utils import timezone
 from activos.models import Activo
+from mantenimientos.models import Mantenimiento
 
 class PrestamoCreateSerializer(serializers.ModelSerializer):
 
@@ -12,10 +13,24 @@ class PrestamoCreateSerializer(serializers.ModelSerializer):
     def validate(self, data):
         activo = data["activo"]
 
-        # Validar que el activo esté disponible
-        if activo.estado != "disponible":
+        # 🔹 Verificar si el activo ya tiene un préstamo activo
+        prestamo_activo = activo.prestamos.filter(
+            estado="activo"
+        ).exists()
+
+        if prestamo_activo:
             raise serializers.ValidationError(
-                "Este activo no está disponible para préstamo."
+                "Este activo ya está prestado."
+            )
+
+        # 🔹 Verificar si está en mantenimiento
+        mantenimiento = activo.mantenimientos.filter(
+            estado="en_proceso"
+        ).exists()
+
+        if mantenimiento:
+            raise serializers.ValidationError(
+                "Este activo está en mantenimiento."
             )
 
         return data
