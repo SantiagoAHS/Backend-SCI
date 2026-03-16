@@ -69,3 +69,22 @@ class PrestamoListSerializer(serializers.ModelSerializer):
 
     def get_dias_restantes(self, obj):
         return (obj.fecha_fin - timezone.now().date()).days
+    
+class PrestamoInfoSerializer(serializers.ModelSerializer):
+
+    area = serializers.StringRelatedField()
+    estado_calculado = serializers.ReadOnlyField()
+
+    class Meta:
+        model = Prestamo
+        fields = [
+            "id",
+            "responsable_nombre",
+            "responsable_telefono",
+            "area",
+            "tipo_prestamo",
+            "fecha_inicio",
+            "fecha_fin",
+            "estado",
+            "estado_calculado"
+        ]

@@ -5,6 +5,8 @@ from rest_framework.views import APIView
 from rest_framework.exceptions import PermissionDenied
 from django.db import transaction
 from datetime import datetime
+from rest_framework.generics import RetrieveAPIView
+from rest_framework.permissions import AllowAny
 
 from django.db.models import Count
 from django.http import HttpResponse
@@ -406,5 +408,54 @@ class ReporteActivosPDFView(APIView):
         table = Table(data)
 
         doc.build([table])
+
+        return response
+
+class ActivoDetailView(RetrieveAPIView):
+    queryset = Activo.objects.all()
+    serializer_class = ActivoListSerializer
+    permission_classes = [AllowAny]
+
+
+import qrcode
+import zipfile
+import os
+from io import BytesIO
+from django.http import HttpResponse
+from django.conf import settings
+from django.conf import settings
+from .models import Activo
+
+class DescargarQRActivosView(APIView):
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+
+        activos = Activo.objects.all()
+
+        base_url = request.build_absolute_uri('/').rstrip('/')
+
+        buffer = BytesIO()
+
+        with zipfile.ZipFile(buffer, "w") as zip_file:
+
+            for activo in activos:
+
+                url = f"{settings.FRONTEND_URL}/activos/{activo.id}"
+
+                qr = qrcode.make(url)
+
+                img_buffer = BytesIO()
+                qr.save(img_buffer, format="PNG")
+
+                file_name = f"activo_{activo.id}.png"
+
+                zip_file.writestr(file_name, img_buffer.getvalue())
+
+        buffer.seek(0)
+
+        response = HttpResponse(buffer, content_type="application/zip")
+        response["Content-Disposition"] = "attachment; filename=qr_activos.zip"
 
         return response

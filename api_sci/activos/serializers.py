@@ -6,6 +6,8 @@ from .models import (
     ValorCaracteristica,
     OpcionCaracteristica
 )
+from prestamos.serializers import PrestamoInfoSerializer
+from mantenimientos.serializers import MantenimientoInfoSerializer
 
 
 # 🔹 Opciones de característica
@@ -201,15 +203,37 @@ class ActivoListSerializer(serializers.ModelSerializer):
     area = serializers.StringRelatedField()
     valores = ValorCaracteristicaSerializer(many=True)
 
+    prestamo = serializers.SerializerMethodField()
+    mantenimiento = serializers.SerializerMethodField()
+
     class Meta:
         model = Activo
         fields = [
-            'id',
-            'nombre',
-            'imagen',
-            'descripcion',
-            'tipo_activo',
-            'area',
-            'estado',
-            'valores'
+            "id",
+            "nombre",
+            "imagen",
+            "descripcion",
+            "tipo_activo",
+            "area",
+            "estado",
+            "valores",
+            "prestamo",
+            "mantenimiento"
         ]
+
+    def get_prestamo(self, obj):
+
+        prestamo = obj.prestamos.exclude(
+            estado__in=["finalizado", "cancelado"]
+        ).order_by("-fecha_inicio").first()
+
+        if prestamo:
+            return PrestamoInfoSerializer(prestamo).data
+
+        return None
+
+    def get_mantenimiento(self, obj):
+        mantenimiento = obj.mantenimientos.filter(estado="en_proceso").first()
+        if mantenimiento:
+            return MantenimientoInfoSerializer(mantenimiento).data
+        return None

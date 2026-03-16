@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import TipoActivoListCreateView, ActivoCreateView, TipoActivoDeleteView, ActivoListView, ActivoDeleteView, DashboardStatsView, ReporteActivosExcelView, ReporteActivosPDFView
+from .views import TipoActivoListCreateView, ActivoCreateView, TipoActivoDeleteView, ActivoListView, ActivoDeleteView, DashboardStatsView, ReporteActivosExcelView, ReporteActivosPDFView, ActivoDetailView, DescargarQRActivosView
 
 urlpatterns = [
     path('tipos-activo/', TipoActivoListCreateView.as_view(), name='tipos-activo'),
@@ -10,4 +10,6 @@ urlpatterns = [
     path("dashboard/stats/", DashboardStatsView.as_view(), name="dashboard-stats"),
     path("reportes/activos/excel/",ReporteActivosExcelView.as_view()),
     path("reportes/activos/pdf/",ReporteActivosPDFView.as_view()),
+    path('activos/<int:pk>/', ActivoDetailView.as_view(), name='activo-detail'),
+    path("activos/qr/descargar/", DescargarQRActivosView.as_view()),
 ]
