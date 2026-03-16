@@ -64,16 +64,16 @@ class Prestamo(models.Model):
     def __str__(self):
         return f"{self.activo} - {self.responsable_nombre} ({self.estado})"
     
-@property
-def estado_calculado(self):
-    if self.estado in ["finalizado", "cancelado"]:
-        return self.estado
+    @property
+    def estado_calculado(self):
+        if self.estado in ["finalizado", "cancelado"]:
+            return self.estado
 
-    if self.fecha_fin < timezone.now().date():
-        return "vencido"
+        if self.fecha_fin < timezone.now().date():
+            return "vencido"
 
-    return "activo"
+        return "activo"
 
-@property
-def dias_restantes(self):
-    return (self.fecha_fin - timezone.now().date()).days
+    @property
+    def dias_restantes(self):
+        return (self.fecha_fin - timezone.now().date()).days

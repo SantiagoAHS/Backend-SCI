@@ -9,6 +9,9 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from datetime import timedelta
+from django.http import HttpResponse
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
 
 
 class PrestamoCreateView(CreateAPIView):
@@ -96,3 +99,84 @@ class NotificacionesPrestamosView(APIView):
         }
 
         return Response(data)
+    
+
+class ReportePrestamosPDFView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        prestamos = Prestamo.objects.select_related("activo", "area").all()
+
+        response = HttpResponse(content_type="application/pdf")
+        response["Content-Disposition"] = "attachment; filename=reporte_prestamos.pdf"
+
+        p = canvas.Canvas(response, pagesize=letter)
+
+        width, height = letter
+
+        # 🔹 LOGO (texto temporal)
+        p.setFont("Helvetica-Bold", 30)
+        p.drawString(width - 150, height - 60, "LOGO")
+
+        # 🔹 Título
+        y = 750
+        p.setFont("Helvetica-Bold", 16)
+        p.drawString(200, y, "Reporte de Préstamos")
+
+        y -= 40
+
+        headers = [
+            "Activo",
+            "Responsable",
+            "Área",
+            "Tipo",
+            "Inicio",
+            "Fin",
+            "Estado"
+        ]
+
+        x_positions = [40, 140, 260, 340, 400, 460, 520]
+
+        # 🔹 Dibujar línea superior de la tabla
+        p.line(40, y + 10, 580, y + 10)
+
+        p.setFont("Helvetica-Bold", 10)
+
+        for i, header in enumerate(headers):
+            p.drawString(x_positions[i], y, header)
+
+        # 🔹 Línea debajo del header
+        p.line(40, y - 5, 580, y - 5)
+
+        y -= 20
+        p.setFont("Helvetica", 9)
+
+        for prestamo in prestamos:
+
+            p.drawString(40, y, str(prestamo.activo.nombre))
+            p.drawString(140, y, str(prestamo.responsable_nombre))
+            p.drawString(260, y, str(prestamo.area.nombre if prestamo.area else "N/A"))
+            p.drawString(340, y, str(prestamo.tipo_prestamo))
+            p.drawString(400, y, str(prestamo.fecha_inicio))
+            p.drawString(460, y, str(prestamo.fecha_fin))
+            p.drawString(520, y, str(prestamo.estado_calculado))
+
+            # 🔹 Línea horizontal de cada fila
+            p.line(40, y - 5, 580, y - 5)
+
+            y -= 20
+
+            if y < 50:
+                p.showPage()
+                p.setFont("Helvetica", 9)
+                y = 750
+
+        # 🔹 Líneas verticales de la tabla
+        for x in [40, 140, 260, 340, 400, 460, 520, 580]:
+            p.line(x, 710, x, y + 20)
+
+        p.save()
+
+        return response
