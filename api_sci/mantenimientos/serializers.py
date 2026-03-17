@@ -93,6 +93,7 @@ class MantenimientoListSerializer(serializers.ModelSerializer):
             "fecha_finalizacion",
             "responsable",
             "costo",
+            "comprobante",
             "descripcion_problema",
         ]
 
@@ -104,6 +105,7 @@ class EditarMantenimientoSerializer(serializers.ModelSerializer):
             "responsable",
             "descripcion_problema",
             "costo",
+            "comprobante",
         ]
 
 class MantenimientoInfoSerializer(serializers.ModelSerializer):

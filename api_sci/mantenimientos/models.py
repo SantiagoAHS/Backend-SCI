@@ -48,6 +48,12 @@ class Mantenimiento(models.Model):
         null=True
     )
 
+    comprobante = models.FileField(
+        upload_to="mantenimientos/comprobantes/",
+        blank=True,
+        null=True
+    )
+
     descripcion_problema = models.TextField(blank=True, null=True)
     acciones_realizadas = models.TextField(blank=True, null=True)
 

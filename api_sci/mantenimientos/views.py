@@ -4,6 +4,7 @@ from .models import Mantenimiento
 from .serializers import MantenimientoPreventivoSerializer, CambiarEstadoMantenimientoSerializer, MantenimientoListSerializer, EditarMantenimientoSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from .services import generar_mantenimientos_preventivos
@@ -58,6 +59,7 @@ class EditarMantenimientoView(UpdateAPIView):
     queryset = Mantenimiento.objects.all()
     serializer_class = EditarMantenimientoSerializer
     lookup_field = "id"
+    parser_classes = [MultiPartParser, FormParser]
 
 class ReporteMantenimientosExcelView(APIView):
 
