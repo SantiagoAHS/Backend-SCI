@@ -410,6 +410,50 @@ class ReporteActivosPDFView(APIView):
         doc.build([table])
 
         return response
+    
+    
+class ReporteActivosPorAreaPDFView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, area_id):
+
+        response = HttpResponse(content_type="application/pdf")
+        response["Content-Disposition"] = "attachment; filename=reporte_activos_area.pdf"
+
+        doc = SimpleDocTemplate(response, pagesize=letter)
+
+        data = [[
+            "ID",
+            "Nombre",
+            "Tipo",
+            "Area",
+            "Estado",
+            "Frecuencia Mant.",
+            "Fecha Registro"
+        ]]
+
+        activos = Activo.objects.select_related(
+            "tipo_activo",
+            "area"
+        ).filter(area_id=area_id)  # 👈 FILTRO
+
+        for a in activos:
+            data.append([
+                a.id,
+                a.nombre,
+                a.tipo_activo.nombre,
+                a.area.nombre,
+                a.estado,
+                a.frecuencia_mantenimiento,
+                a.fecha_registro.strftime("%Y-%m-%d"),
+            ])
+
+        table = Table(data)
+
+        doc.build([table])
+
+        return response
 
 class ActivoDetailView(RetrieveAPIView):
     queryset = Activo.objects.all()
