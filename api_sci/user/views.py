@@ -147,3 +147,12 @@ class UserDeleteView(APIView):
             {"message": "Usuario eliminado correctamente"},
             status=status.HTTP_200_OK
         )
+    
+class UserProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        serializer = UserSerializer(request.user)
+
+        return Response(serializer.data)
