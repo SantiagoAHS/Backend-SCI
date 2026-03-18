@@ -118,13 +118,32 @@ class ReporteMantenimientosExcelView(APIView):
 
         return response
     
+from datetime import datetime, timedelta
+
 class ReporteMantenimientosPDFView(APIView):
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
 
+        # 🔥 Obtener fechas
+        fecha_inicio = request.GET.get("fecha_inicio")
+        fecha_fin = request.GET.get("fecha_fin")
+
         mantenimientos = Mantenimiento.objects.all()
+
+        # 🔥 Filtros correctos (sin __date)
+        if fecha_inicio:
+            fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+            mantenimientos = mantenimientos.filter(
+                fecha_ingreso__gte=fecha_inicio
+            )
+
+        if fecha_fin:
+            fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d") + timedelta(days=1)
+            mantenimientos = mantenimientos.filter(
+                fecha_ingreso__lt=fecha_fin
+            )
 
         response = HttpResponse(content_type="application/pdf")
         response["Content-Disposition"] = "attachment; filename=reporte_mantenimientos.pdf"
@@ -159,12 +178,20 @@ class ReporteMantenimientosPDFView(APIView):
 
         for m in mantenimientos:
 
-            p.drawString(40, y, str(m.activo.nombre))
-            p.drawString(150, y, str(m.tipo))
-            p.drawString(230, y, str(m.estado))
-            p.drawString(320, y, str(m.fecha_ingreso))
-            p.drawString(420, y, str(m.responsable))
-            p.drawString(520, y, str(m.costo))
+            # 🔥 Manejo seguro de valores nulos
+            activo = m.activo.nombre if m.activo else ""
+            tipo = m.tipo if m.tipo else ""
+            estado = m.estado if m.estado else ""
+            fecha = m.fecha_ingreso.strftime("%Y-%m-%d") if m.fecha_ingreso else ""
+            responsable = m.responsable if m.responsable else ""
+            costo = str(m.costo) if m.costo else "0"
+
+            p.drawString(40, y, str(activo))
+            p.drawString(150, y, str(tipo))
+            p.drawString(230, y, str(estado))
+            p.drawString(320, y, fecha)
+            p.drawString(420, y, str(responsable))
+            p.drawString(520, y, costo)
 
             y -= 20
 

@@ -261,6 +261,23 @@ class ActivoListView(generics.ListAPIView):
             "valores__caracteristica",
             "valores__opcion"
         )
+    
+# 🔹 Listar activos disponibles
+class ActivoDisponibleListView(generics.ListAPIView):
+
+    serializer_class = ActivoListSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Activo.objects.select_related(
+            "tipo_activo",
+            "area"
+        ).prefetch_related(
+            "valores__caracteristica",
+            "valores__opcion"
+        ).filter(
+            estado='disponible'
+        )
 
 
 # 🔹 Eliminar activo
@@ -374,6 +391,20 @@ class ReporteActivosPDFView(APIView):
 
     def get(self, request):
 
+        fecha_inicio = request.GET.get("fecha_inicio")
+        fecha_fin = request.GET.get("fecha_fin")
+
+        activos = Activo.objects.select_related(
+            "tipo_activo",
+            "area"
+        ).all()
+
+        # Filtro por fechas
+        if fecha_inicio and fecha_fin:
+            activos = activos.filter(
+                fecha_registro__date__range=[fecha_inicio, fecha_fin]
+            )
+
         response = HttpResponse(content_type="application/pdf")
         response["Content-Disposition"] = "attachment; filename=reporte_activos.pdf"
 
@@ -388,11 +419,6 @@ class ReporteActivosPDFView(APIView):
             "Frecuencia Mant.",
             "Fecha Registro"
         ]]
-
-        activos = Activo.objects.select_related(
-            "tipo_activo",
-            "area"
-        ).all()
 
         for a in activos:
             data.append([
@@ -503,3 +529,4 @@ class DescargarQRActivosView(APIView):
         response["Content-Disposition"] = "attachment; filename=qr_activos.zip"
 
         return response
+    

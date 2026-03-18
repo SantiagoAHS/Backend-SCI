@@ -12,6 +12,7 @@ from datetime import timedelta
 from django.http import HttpResponse
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
+from datetime import datetime, timedelta
 
 
 class PrestamoCreateView(CreateAPIView):
@@ -107,7 +108,24 @@ class ReportePrestamosPDFView(APIView):
 
     def get(self, request):
 
+        # Fechas desde query params
+        fecha_inicio = request.GET.get("fecha_inicio")
+        fecha_fin = request.GET.get("fecha_fin")
+
         prestamos = Prestamo.objects.select_related("activo", "area").all()
+
+        # Filtros correctos
+        if fecha_inicio:
+            fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+            prestamos = prestamos.filter(
+                fecha_inicio__gte=fecha_inicio
+            )
+
+        if fecha_fin:
+            fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d") + timedelta(days=1)
+            prestamos = prestamos.filter(
+                fecha_inicio__lt=fecha_fin
+            )
 
         response = HttpResponse(content_type="application/pdf")
         response["Content-Disposition"] = "attachment; filename=reporte_prestamos.pdf"
@@ -116,7 +134,7 @@ class ReportePrestamosPDFView(APIView):
 
         width, height = letter
 
-        # 🔹 LOGO (texto temporal)
+        # 🔹 LOGO
         p.setFont("Helvetica-Bold", 30)
         p.drawString(width - 150, height - 60, "LOGO")
 
@@ -139,7 +157,7 @@ class ReportePrestamosPDFView(APIView):
 
         x_positions = [40, 140, 260, 340, 400, 460, 520]
 
-        # 🔹 Dibujar línea superior de la tabla
+        # 🔹 Línea superior
         p.line(40, y + 10, 580, y + 10)
 
         p.setFont("Helvetica-Bold", 10)
@@ -147,7 +165,7 @@ class ReportePrestamosPDFView(APIView):
         for i, header in enumerate(headers):
             p.drawString(x_positions[i], y, header)
 
-        # 🔹 Línea debajo del header
+        # 🔹 Línea header
         p.line(40, y - 5, 580, y - 5)
 
         y -= 20
@@ -155,15 +173,24 @@ class ReportePrestamosPDFView(APIView):
 
         for prestamo in prestamos:
 
-            p.drawString(40, y, str(prestamo.activo.nombre))
-            p.drawString(140, y, str(prestamo.responsable_nombre))
-            p.drawString(260, y, str(prestamo.area.nombre if prestamo.area else "N/A"))
-            p.drawString(340, y, str(prestamo.tipo_prestamo))
-            p.drawString(400, y, str(prestamo.fecha_inicio))
-            p.drawString(460, y, str(prestamo.fecha_fin))
-            p.drawString(520, y, str(prestamo.estado_calculado))
+            # Manejo seguro
+            activo = prestamo.activo.nombre if prestamo.activo else ""
+            responsable = prestamo.responsable_nombre if prestamo.responsable_nombre else ""
+            area = prestamo.area.nombre if prestamo.area else "N/A"
+            tipo = prestamo.tipo_prestamo if prestamo.tipo_prestamo else ""
+            inicio = prestamo.fecha_inicio.strftime("%Y-%m-%d") if prestamo.fecha_inicio else ""
+            fin = prestamo.fecha_fin.strftime("%Y-%m-%d") if prestamo.fecha_fin else ""
+            estado = prestamo.estado_calculado if prestamo.estado_calculado else ""
 
-            # 🔹 Línea horizontal de cada fila
+            p.drawString(40, y, str(activo))
+            p.drawString(140, y, str(responsable))
+            p.drawString(260, y, str(area))
+            p.drawString(340, y, str(tipo))
+            p.drawString(400, y, inicio)
+            p.drawString(460, y, fin)
+            p.drawString(520, y, str(estado))
+
+            # 🔹 línea fila
             p.line(40, y - 5, 580, y - 5)
 
             y -= 20
@@ -173,7 +200,7 @@ class ReportePrestamosPDFView(APIView):
                 p.setFont("Helvetica", 9)
                 y = 750
 
-        # 🔹 Líneas verticales de la tabla
+        # 🔹 líneas verticales (opcional, se dibujan al final de cada página realmente)
         for x in [40, 140, 260, 340, 400, 460, 520, 580]:
             p.line(x, 710, x, y + 20)
 
