@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'activos',
     'prestamos',
     'mantenimientos',
+    'auditoria',
 
 ]
 

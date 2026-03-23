@@ -462,7 +462,7 @@ class ReporteActivosPorAreaPDFView(APIView):
         activos = Activo.objects.select_related(
             "tipo_activo",
             "area"
-        ).filter(area_id=area_id)  # 👈 FILTRO
+        ).filter(area_id=area_id)  # FILTRO
 
         for a in activos:
             data.append([
