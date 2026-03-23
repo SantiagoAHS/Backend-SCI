@@ -73,3 +73,50 @@ def finalizar_auditoria(request, pk):
     auditoria.save()
 
     return Response({"message": "Auditoría finalizada"})
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def iniciar_auditoria_area(request):
+    """
+    Inicia una auditoría para un área específica.
+    Se espera recibir en el body: {"area_id": 1}
+    """
+    if request.user.rol != "admin":
+        raise PermissionDenied("No autorizado")
+
+    area_id = request.data.get("area_id")
+    if not area_id:
+        return Response({"error": "Se requiere el ID del área"}, status=status.HTTP_400_BAD_REQUEST)
+
+    from areas.models import Area
+    try:
+        area = Area.objects.get(pk=area_id)
+    except Area.DoesNotExist:
+        return Response({"error": "Área no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+    # 🔹 Evitar duplicar "Auditoría" si el área ya lo tiene
+    area_nombre = area.nombre
+    if not area_nombre.lower().startswith("auditoría"):
+        area_nombre = f"{area_nombre}"
+
+    # 🔹 Crear auditoría
+    auditoria = Auditoria.objects.create(
+        nombre=f"Auditoría {area_nombre} {timezone.now().strftime('%Y-%m-%d %H:%M')}",
+        responsable=request.user.username,
+        estado="en_proceso",
+        area=area
+    )
+
+    # 🔹 Filtrar activos solo de esa área
+    activos = Activo.objects.filter(area=area)
+
+    for activo in activos:
+        DetalleAuditoria.objects.create(
+            auditoria=auditoria,
+            activo=activo
+        )
+
+    return Response({
+        "message": f"Auditoría para el área {area.nombre} iniciada",
+        "auditoria_id": auditoria.id
+    }, status=status.HTTP_201_CREATED)

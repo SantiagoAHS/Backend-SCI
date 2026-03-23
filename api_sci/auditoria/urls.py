@@ -5,10 +5,12 @@ from .views import (
     DetalleAuditoriaUpdateView,
     AuditoriaListView,
     finalizar_auditoria,
+    iniciar_auditoria_area,
 )
 
 urlpatterns = [
     path("auditoria/iniciar/", iniciar_auditoria, name="iniciar_auditoria"),
+    path("auditoria/iniciar/area/", iniciar_auditoria_area, name="iniciar_auditoria_area"),
     path("auditoria/<int:pk>/", AuditoriaDetailView.as_view(), name="auditoria_detalle"),
     path("auditoria/detalle/<int:pk>/", DetalleAuditoriaUpdateView.as_view(), name="detalle_update"),
     path("auditorias/list/", AuditoriaListView.as_view(), name="auditoria_list"),

@@ -1,7 +1,6 @@
 from django.db import models
 from django.utils import timezone
 
-
 class Auditoria(models.Model):
 
     ESTADO_AUDITORIA = [
@@ -13,6 +12,15 @@ class Auditoria(models.Model):
     nombre = models.CharField(max_length=150)
 
     responsable = models.CharField(max_length=150)
+
+    # 🔥 NUEVO CAMPO
+    area = models.ForeignKey(
+        "areas.Area",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="auditorias"
+    )
 
     fecha_inicio = models.DateTimeField(default=timezone.now)
     fecha_fin = models.DateTimeField(blank=True, null=True)
@@ -28,7 +36,10 @@ class Auditoria(models.Model):
     creado_en = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return self.nombre
+        # 🔥 opcional pero útil
+        if self.area:
+            return f"{self.nombre} - {self.area.nombre}"
+        return f"{self.nombre} - General"
     
 class DetalleAuditoria(models.Model):
 
