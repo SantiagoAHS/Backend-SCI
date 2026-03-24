@@ -120,3 +120,68 @@ def iniciar_auditoria_area(request):
         "message": f"Auditoría para el área {area.nombre} iniciada",
         "auditoria_id": auditoria.id
     }, status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def iniciar_auditoria_tipo(request):
+    """
+    Inicia una auditoría por tipo de activos.
+    Body: {"tipo": "mantenimiento"} | {"tipo": "prestamo"} | {"tipo": "disponible"}
+    """
+
+    if request.user.rol != "admin":
+        raise PermissionDenied("No autorizado")
+
+    tipo = request.data.get("tipo")
+
+    if not tipo:
+        return Response(
+            {"error": "Se requiere el tipo de auditoría"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # AHORA INCLUYE DISPONIBLE
+    if tipo not in ["mantenimiento", "prestamo", "disponible"]:
+        return Response(
+            {"error": "Tipo no válido. Debe ser 'mantenimiento', 'prestamo' o 'disponible'"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # 🔹 Mapear tipo → estado real en Activo
+    MAPEO_TIPO_ESTADO = {
+        "mantenimiento": "mantenimiento",
+        "prestamo": "asignado",  
+        "disponible": "disponible"  
+    }
+
+    estado_filtro = MAPEO_TIPO_ESTADO.get(tipo)
+
+    # 🔹 Crear auditoría
+    auditoria = Auditoria.objects.create(
+        nombre=f"Auditoría {tipo.capitalize()} {timezone.now().strftime('%Y-%m-%d %H:%M')}",
+        responsable=request.user.username,
+        tipo=tipo,
+        estado="en_proceso"
+    )
+
+    # 🔹 Filtrar activos
+    activos = Activo.objects.filter(estado=estado_filtro)
+
+    # 🔹 DEBUG (opcional)
+    print("TIPO:", tipo)
+    print("ESTADO FILTRO:", estado_filtro)
+    print("ACTIVOS ENCONTRADOS:", activos.count())
+
+    # 🔹 Crear detalles
+    for activo in activos:
+        DetalleAuditoria.objects.create(
+            auditoria=auditoria,
+            activo=activo
+        )
+
+    return Response({
+        "message": f"Auditoría de tipo {tipo} iniciada",
+        "auditoria_id": auditoria.id,
+        "total_activos": activos.count()
+    }, status=status.HTTP_201_CREATED)

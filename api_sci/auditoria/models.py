@@ -2,18 +2,20 @@ from django.db import models
 from django.utils import timezone
 
 class Auditoria(models.Model):
-
     ESTADO_AUDITORIA = [
         ("pendiente", "Pendiente"),
         ("en_proceso", "En proceso"),
         ("finalizada", "Finalizada"),
     ]
 
+    TIPO_AUDITORIA = [
+        ("mantenimiento", "Mantenimiento"),
+        ("prestamo", "Préstamo"),
+        ("disponible", "Disponible"),
+    ]
+
     nombre = models.CharField(max_length=150)
-
     responsable = models.CharField(max_length=150)
-
-    # 🔥 NUEVO CAMPO
     area = models.ForeignKey(
         "areas.Area",
         on_delete=models.SET_NULL,
@@ -21,25 +23,27 @@ class Auditoria(models.Model):
         blank=True,
         related_name="auditorias"
     )
-
+    tipo = models.CharField(
+        max_length=20,
+        choices=TIPO_AUDITORIA,
+        blank=True,
+        null=True
+    )
     fecha_inicio = models.DateTimeField(default=timezone.now)
     fecha_fin = models.DateTimeField(blank=True, null=True)
-
-    estado = models.CharField(
-        max_length=20,
-        choices=ESTADO_AUDITORIA,
-        default="pendiente"
-    )
-
+    estado = models.CharField(max_length=20, choices=ESTADO_AUDITORIA, default="pendiente")
     observaciones = models.TextField(blank=True, null=True)
-
     creado_en = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        # 🔥 opcional pero útil
+        desc = ""
         if self.area:
-            return f"{self.nombre} - {self.area.nombre}"
-        return f"{self.nombre} - General"
+            desc += f"{self.area.nombre}"
+        else:
+            desc += "General"
+        if self.tipo:
+            desc += f" - {self.tipo.capitalize()}"
+        return f"{self.nombre} - {desc}"
     
 class DetalleAuditoria(models.Model):
 
