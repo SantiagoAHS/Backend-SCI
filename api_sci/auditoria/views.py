@@ -185,3 +185,93 @@ def iniciar_auditoria_tipo(request):
         "auditoria_id": auditoria.id,
         "total_activos": activos.count()
     }, status=status.HTTP_201_CREATED)
+
+from django.http import HttpResponse
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+
+from .models import Auditoria, DetalleAuditoria
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def generar_pdf_auditoria(request, pk):
+
+    try:
+        auditoria = Auditoria.objects.get(pk=pk)
+    except Auditoria.DoesNotExist:
+        return Response({"error": "Auditoría no encontrada"}, status=404)
+
+    if auditoria.estado != "finalizada":
+        return Response({"error": "La auditoría no está finalizada"}, status=400)
+
+    detalles = DetalleAuditoria.objects.filter(auditoria=auditoria)
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="auditoria_{auditoria.id}.pdf"'
+
+    doc = SimpleDocTemplate(response)
+    styles = getSampleStyleSheet()
+
+    elementos = []
+
+    # 🔹 Título
+    elementos.append(Paragraph("Reporte de Auditoría", styles['Title']))
+    elementos.append(Spacer(1, 12))
+
+    # 🔹 Info
+    elementos.append(Paragraph(f"Nombre: {auditoria.nombre}", styles['Normal']))
+    elementos.append(Paragraph(f"Responsable: {auditoria.responsable}", styles['Normal']))
+    elementos.append(Paragraph(f"Estado: {auditoria.estado}", styles['Normal']))
+    elementos.append(Paragraph(f"Fecha inicio: {auditoria.creado_en}", styles['Normal']))
+    elementos.append(Paragraph(f"Fecha fin: {auditoria.fecha_fin}", styles['Normal']))
+    elementos.append(Spacer(1, 12))
+
+    # 🔹 Tabla
+    data = [["ID", "Activo", "Sistema", "Real", "Resultado"]]
+
+    correctos = 0
+    incorrectos = 0
+
+    for d in detalles:
+
+        estado_sistema = d.activo.estado
+        estado_real = getattr(d, "estado_real", None)  # 
+
+        if estado_sistema == estado_real:
+            estado_texto = "Correcto"
+            correctos += 1
+        else:
+            estado_texto = "Incorrecto"
+            incorrectos += 1
+
+        data.append([
+            d.activo.id,
+            str(d.activo.nombre),
+            estado_sistema,
+            estado_real if estado_real else "Sin registro",
+            estado_texto
+        ])
+
+    # 🔹 Resumen
+    elementos.append(Paragraph(f"Correctos: {correctos}", styles['Normal']))
+    elementos.append(Paragraph(f"Incorrectos: {incorrectos}", styles['Normal']))
+    elementos.append(Spacer(1, 12))
+
+    tabla = Table(data)
+
+    tabla.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+
+    elementos.append(tabla)
+
+    doc.build(elementos)
+
+    return response
