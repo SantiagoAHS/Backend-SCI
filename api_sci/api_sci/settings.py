@@ -152,3 +152,8 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 FRONTEND_URL = "http://localhost:3000"
+
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+RESEND_API_KEY = "re_9qbyDpTc_7z9ypCuoVuWkA7s3eJwEFdng"
+DEFAULT_FROM_EMAIL = "onboarding@resend.dev"

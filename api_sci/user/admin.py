@@ -10,6 +10,8 @@ class CustomUserAdmin(UserAdmin):
 
     list_display = (
         'username',
+        'email',
+        'email_verified',
         'numero_empleado',
         'rol',
         'cargo',
@@ -20,33 +22,36 @@ class CustomUserAdmin(UserAdmin):
     list_filter = (
         'rol',
         'activo',
+        'email_verified',
         'is_staff',
         'is_superuser',
     )
 
-    fieldsets = UserAdmin.fieldsets + (
-        ('Información Empresarial', {
-            'fields': (
-                'numero_empleado',
-                'rol',
-                'telefono',
-                'cargo',
-                'fecha_ingreso',
-                'activo',
-            )
+    # 🔥 DEFINICIÓN COMPLETA (sin duplicados)
+    fieldsets = (
+        ('Credenciales', {
+            'fields': ('username', 'password')
+        }),
+        ('Información personal', {
+            'fields': ('email', 'email_verified', 'telefono')
+        }),
+        ('Información empresarial', {
+            'fields': ('numero_empleado', 'rol', 'cargo', 'fecha_ingreso', 'activo')
+        }),
+        ('Permisos', {
+            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')
+        }),
+        ('Fechas importantes', {
+            'fields': ('last_login', 'date_joined')
         }),
     )
 
-    add_fieldsets = UserAdmin.add_fieldsets + (
-        ('Información Empresarial', {
-            'fields': (
-                'numero_empleado',
-                'rol',
-                'telefono',
-                'area',
-                'fecha_ingreso',
-                'activo',
-            )
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('username', 'email', 'password1', 'password2'),
+        }),
+        ('Información empresarial', {
+            'fields': ('numero_empleado', 'rol', 'telefono', 'cargo', 'activo')
         }),
     )
-

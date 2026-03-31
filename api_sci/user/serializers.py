@@ -10,6 +10,8 @@ class UserSerializer(serializers.ModelSerializer):
             "username",
             "numero_empleado",
             "rol",
+            "email",             
+            "email_verified", 
             "telefono",
             "cargo",
             "fecha_ingreso",
@@ -47,20 +49,35 @@ class RegisterSerializer(serializers.ModelSerializer):
 class UserUpdateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False)
     telefono = serializers.CharField(required=False)
+    email = serializers.EmailField(required=False)
 
     class Meta:
         model = User
-        fields = ["password", "telefono"]
+        fields = ["password", "telefono", "email"]
+
+    def validate_email(self, value):
+        user = self.instance
+
+        if User.objects.filter(email=value).exclude(id=user.id).exists():
+            raise serializers.ValidationError("Este correo ya está en uso.")
+
+        return value
 
     def update(self, instance, validated_data):
         password = validated_data.get("password", None)
         telefono = validated_data.get("telefono", None)
+        email = validated_data.get("email", None)
 
         if password:
-            instance.set_password(password)  # encripta
+            instance.set_password(password)
 
         if telefono is not None:
             instance.telefono = telefono
+
+        if email is not None:
+            if email != instance.email:
+                instance.email = email
+                instance.email_verified = False  # importante
 
         instance.save()
         return instance
