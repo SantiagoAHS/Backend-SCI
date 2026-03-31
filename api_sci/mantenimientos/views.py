@@ -118,6 +118,15 @@ class ReporteMantenimientosExcelView(APIView):
 
         return response
     
+
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from django.http import HttpResponse
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from datetime import datetime, timedelta
 
 class ReporteMantenimientosPDFView(APIView):
@@ -126,80 +135,116 @@ class ReporteMantenimientosPDFView(APIView):
 
     def get(self, request):
 
-        # 🔥 Obtener fechas
         fecha_inicio = request.GET.get("fecha_inicio")
         fecha_fin = request.GET.get("fecha_fin")
 
-        mantenimientos = Mantenimiento.objects.all()
+        mantenimientos = Mantenimiento.objects.select_related("activo").all()
 
-        # 🔥 Filtros correctos (sin __date)
+        # 🔍 Filtros
         if fecha_inicio:
             fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
-            mantenimientos = mantenimientos.filter(
-                fecha_ingreso__gte=fecha_inicio
-            )
+            mantenimientos = mantenimientos.filter(fecha_ingreso__gte=fecha_inicio)
 
         if fecha_fin:
             fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d") + timedelta(days=1)
-            mantenimientos = mantenimientos.filter(
-                fecha_ingreso__lt=fecha_fin
-            )
+            mantenimientos = mantenimientos.filter(fecha_ingreso__lt=fecha_fin)
 
         response = HttpResponse(content_type="application/pdf")
         response["Content-Disposition"] = "attachment; filename=reporte_mantenimientos.pdf"
 
-        p = canvas.Canvas(response, pagesize=letter)
+        doc = SimpleDocTemplate(
+            response,
+            pagesize=letter,
+            rightMargin=40,
+            leftMargin=40,
+            topMargin=40,
+            bottomMargin=40
+        )
 
-        y = 750
+        elements = []
+        styles = getSampleStyleSheet()
 
-        p.setFont("Helvetica-Bold", 16)
-        p.drawString(200, y, "Reporte de Mantenimientos")
+        # 🎯 Estilos
+        title_style = ParagraphStyle(
+            name="TitleStyle",
+            fontSize=18,
+            alignment=TA_CENTER,
+            spaceAfter=10,
+            leading=22
+        )
 
-        y -= 40
+        subtitle_style = ParagraphStyle(
+            name="SubTitleStyle",
+            fontSize=11,
+            alignment=TA_CENTER,
+            spaceAfter=15
+        )
 
-        p.setFont("Helvetica-Bold", 10)
+        logo_style = ParagraphStyle(
+            name="LogoStyle",
+            fontSize=10,
+            alignment=TA_RIGHT
+        )
 
-        headers = [
+        # 🧾 Encabezado
+        header_data = [
+            [
+                Paragraph("REPORTE DE MANTENIMIENTOS", title_style),
+                Paragraph("LOGO", logo_style)
+            ]
+        ]
+
+        header_table = Table(header_data, colWidths=[400, 100])
+        elements.append(header_table)
+
+        # 📅 Mostrar filtros
+        if fecha_inicio or fecha_fin:
+            rango = f"Desde: {fecha_inicio.strftime('%Y-%m-%d') if fecha_inicio else '---'}  |  Hasta: {fecha_fin.strftime('%Y-%m-%d') if fecha_fin else '---'}"
+            elements.append(Paragraph(rango, subtitle_style))
+
+        elements.append(Spacer(1, 10))
+
+        # 📊 Tabla
+        data = [[
             "Activo",
             "Tipo",
             "Estado",
             "Fecha ingreso",
             "Responsable",
             "Costo"
-        ]
-
-        x_positions = [40, 150, 230, 320, 420, 520]
-
-        for i, header in enumerate(headers):
-            p.drawString(x_positions[i], y, header)
-
-        y -= 20
-        p.setFont("Helvetica", 9)
+        ]]
 
         for m in mantenimientos:
+            data.append([
+                m.activo.nombre if m.activo else "",
+                m.tipo or "",
+                m.estado or "",
+                m.fecha_ingreso.strftime("%Y-%m-%d") if m.fecha_ingreso else "",
+                m.responsable or "",
+                f"${m.costo}" if m.costo else "$0",
+            ])
 
-            # 🔥 Manejo seguro de valores nulos
-            activo = m.activo.nombre if m.activo else ""
-            tipo = m.tipo if m.tipo else ""
-            estado = m.estado if m.estado else ""
-            fecha = m.fecha_ingreso.strftime("%Y-%m-%d") if m.fecha_ingreso else ""
-            responsable = m.responsable if m.responsable else ""
-            costo = str(m.costo) if m.costo else "0"
+        table = Table(data, repeatRows=1)
 
-            p.drawString(40, y, str(activo))
-            p.drawString(150, y, str(tipo))
-            p.drawString(230, y, str(estado))
-            p.drawString(320, y, fecha)
-            p.drawString(420, y, str(responsable))
-            p.drawString(520, y, costo)
+        # 🎨 Estilo profesional
+        table.setStyle(TableStyle([
+            # Header
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#145a32")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
 
-            y -= 20
+            # Filas
+            ("BACKGROUND", (0, 1), (-1, -1), colors.whitesmoke),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
 
-            if y < 50:
-                p.showPage()
-                p.setFont("Helvetica", 9)
-                y = 750
+            # Padding
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
+            ("TOPPADDING", (0, 0), (-1, 0), 10),
+        ]))
 
-        p.save()
+        elements.append(table)
+
+        doc.build(elements)
 
         return response

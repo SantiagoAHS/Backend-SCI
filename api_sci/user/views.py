@@ -177,7 +177,7 @@ class SendVerificationEmailView(APIView):
 
         token_obj = EmailVerificationToken.objects.create(user=user)
 
-        link = f"http://localhost:3000/verify-email/{token_obj.token}"
+        link = f"{settings.FRONTEND_URL}/verify-email/{token_obj.token}"
 
         resend.api_key = settings.RESEND_API_KEY
 

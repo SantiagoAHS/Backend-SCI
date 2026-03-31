@@ -102,50 +102,93 @@ class NotificacionesPrestamosView(APIView):
         return Response(data)
     
 
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from django.http import HttpResponse
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+from datetime import datetime, timedelta
+
 class ReportePrestamosPDFView(APIView):
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
 
-        # Fechas desde query params
         fecha_inicio = request.GET.get("fecha_inicio")
         fecha_fin = request.GET.get("fecha_fin")
 
         prestamos = Prestamo.objects.select_related("activo", "area").all()
 
-        # Filtros correctos
+        # 🔍 Filtros
         if fecha_inicio:
             fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
-            prestamos = prestamos.filter(
-                fecha_inicio__gte=fecha_inicio
-            )
+            prestamos = prestamos.filter(fecha_inicio__gte=fecha_inicio)
 
         if fecha_fin:
             fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d") + timedelta(days=1)
-            prestamos = prestamos.filter(
-                fecha_inicio__lt=fecha_fin
-            )
+            prestamos = prestamos.filter(fecha_inicio__lt=fecha_fin)
 
         response = HttpResponse(content_type="application/pdf")
         response["Content-Disposition"] = "attachment; filename=reporte_prestamos.pdf"
 
-        p = canvas.Canvas(response, pagesize=letter)
+        doc = SimpleDocTemplate(
+            response,
+            pagesize=letter,
+            rightMargin=40,
+            leftMargin=40,
+            topMargin=40,
+            bottomMargin=40
+        )
 
-        width, height = letter
+        elements = []
+        styles = getSampleStyleSheet()
 
-        # 🔹 LOGO
-        p.setFont("Helvetica-Bold", 30)
-        p.drawString(width - 150, height - 60, "LOGO")
+        # 🎯 Estilos
+        title_style = ParagraphStyle(
+            name="TitleStyle",
+            fontSize=18,
+            alignment=TA_CENTER,
+            spaceAfter=10,
+            leading=22
+        )
 
-        # 🔹 Título
-        y = 750
-        p.setFont("Helvetica-Bold", 16)
-        p.drawString(200, y, "Reporte de Préstamos")
+        subtitle_style = ParagraphStyle(
+            name="SubTitleStyle",
+            fontSize=11,
+            alignment=TA_CENTER,
+            spaceAfter=15
+        )
 
-        y -= 40
+        logo_style = ParagraphStyle(
+            name="LogoStyle",
+            fontSize=10,
+            alignment=TA_RIGHT
+        )
 
-        headers = [
+        # 🧾 Header
+        header_data = [
+            [
+                Paragraph("REPORTE DE PRÉSTAMOS", title_style),
+                Paragraph("LOGO", logo_style)
+            ]
+        ]
+
+        header_table = Table(header_data, colWidths=[400, 100])
+        elements.append(header_table)
+
+        # 📅 Mostrar filtros aplicados
+        if fecha_inicio or fecha_fin:
+            rango = f"Desde: {fecha_inicio.strftime('%Y-%m-%d') if fecha_inicio else '---'}  |  Hasta: {fecha_fin.strftime('%Y-%m-%d') if fecha_fin else '---'}"
+            elements.append(Paragraph(rango, subtitle_style))
+
+        elements.append(Spacer(1, 10))
+
+        # 📊 Tabla
+        data = [[
             "Activo",
             "Responsable",
             "Área",
@@ -153,57 +196,40 @@ class ReportePrestamosPDFView(APIView):
             "Inicio",
             "Fin",
             "Estado"
-        ]
+        ]]
 
-        x_positions = [40, 140, 260, 340, 400, 460, 520]
+        for p in prestamos:
+            data.append([
+                p.activo.nombre if p.activo else "",
+                p.responsable_nombre or "",
+                p.area.nombre if p.area else "N/A",
+                p.tipo_prestamo or "",
+                p.fecha_inicio.strftime("%Y-%m-%d") if p.fecha_inicio else "",
+                p.fecha_fin.strftime("%Y-%m-%d") if p.fecha_fin else "",
+                p.estado_calculado or "",
+            ])
 
-        # 🔹 Línea superior
-        p.line(40, y + 10, 580, y + 10)
+        table = Table(data, repeatRows=1)
 
-        p.setFont("Helvetica-Bold", 10)
+        # 🎨 Estilo profesional
+        table.setStyle(TableStyle([
+            # Header
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f4e79")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
 
-        for i, header in enumerate(headers):
-            p.drawString(x_positions[i], y, header)
+            # Filas
+            ("BACKGROUND", (0, 1), (-1, -1), colors.whitesmoke),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
 
-        # 🔹 Línea header
-        p.line(40, y - 5, 580, y - 5)
+            # Padding
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
+            ("TOPPADDING", (0, 0), (-1, 0), 10),
+        ]))
 
-        y -= 20
-        p.setFont("Helvetica", 9)
+        elements.append(table)
 
-        for prestamo in prestamos:
-
-            # Manejo seguro
-            activo = prestamo.activo.nombre if prestamo.activo else ""
-            responsable = prestamo.responsable_nombre if prestamo.responsable_nombre else ""
-            area = prestamo.area.nombre if prestamo.area else "N/A"
-            tipo = prestamo.tipo_prestamo if prestamo.tipo_prestamo else ""
-            inicio = prestamo.fecha_inicio.strftime("%Y-%m-%d") if prestamo.fecha_inicio else ""
-            fin = prestamo.fecha_fin.strftime("%Y-%m-%d") if prestamo.fecha_fin else ""
-            estado = prestamo.estado_calculado if prestamo.estado_calculado else ""
-
-            p.drawString(40, y, str(activo))
-            p.drawString(140, y, str(responsable))
-            p.drawString(260, y, str(area))
-            p.drawString(340, y, str(tipo))
-            p.drawString(400, y, inicio)
-            p.drawString(460, y, fin)
-            p.drawString(520, y, str(estado))
-
-            # 🔹 línea fila
-            p.line(40, y - 5, 580, y - 5)
-
-            y -= 20
-
-            if y < 50:
-                p.showPage()
-                p.setFont("Helvetica", 9)
-                y = 750
-
-        # 🔹 líneas verticales (opcional, se dibujan al final de cada página realmente)
-        for x in [40, 140, 260, 340, 400, 460, 520, 580]:
-            p.line(x, 710, x, y + 20)
-
-        p.save()
+        doc.build(elements)
 
         return response

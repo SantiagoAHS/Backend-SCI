@@ -385,6 +385,15 @@ class ReporteActivosExcelView(APIView):
 
 
 # 🔹 Reporte PDF
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from django.http import HttpResponse
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+
 class ReporteActivosPDFView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -399,7 +408,6 @@ class ReporteActivosPDFView(APIView):
             "area"
         ).all()
 
-        # Filtro por fechas
         if fecha_inicio and fecha_fin:
             activos = activos.filter(
                 fecha_registro__date__range=[fecha_inicio, fecha_fin]
@@ -408,76 +416,213 @@ class ReporteActivosPDFView(APIView):
         response = HttpResponse(content_type="application/pdf")
         response["Content-Disposition"] = "attachment; filename=reporte_activos.pdf"
 
-        doc = SimpleDocTemplate(response, pagesize=letter)
+        doc = SimpleDocTemplate(
+            response,
+            pagesize=letter,
+            rightMargin=40,
+            leftMargin=40,
+            topMargin=40,
+            bottomMargin=40
+        )
 
+        elements = []
+
+        styles = getSampleStyleSheet()
+
+        # 🎯 Estilos personalizados
+        title_style = ParagraphStyle(
+            name="TitleStyle",
+            fontSize=18,
+            alignment=TA_CENTER,
+            spaceAfter=10,
+            leading=22
+        )
+
+        logo_style = ParagraphStyle(
+            name="LogoStyle",
+            fontSize=10,
+            alignment=TA_RIGHT
+        )
+
+        # 🧾 Encabezado (Logo + Título)
+        header_data = [
+            [
+                Paragraph("REPORTE DE ACTIVOS", title_style),
+                Paragraph("LOGO", logo_style)
+            ]
+        ]
+
+        header_table = Table(header_data, colWidths=[400, 100])
+        elements.append(header_table)
+        elements.append(Spacer(1, 20))
+
+        # 📊 Datos de tabla
         data = [[
             "ID",
             "Nombre",
             "Tipo",
-            "Area",
+            "Área",
             "Estado",
-            "Frecuencia Mant.",
-            "Fecha Registro"
+            "Frecuencia",
+            "Fecha"
         ]]
 
         for a in activos:
             data.append([
-                a.id,
+                str(a.id),
                 a.nombre,
                 a.tipo_activo.nombre,
                 a.area.nombre,
                 a.estado,
-                a.frecuencia_mantenimiento,
+                str(a.frecuencia_mantenimiento),
                 a.fecha_registro.strftime("%Y-%m-%d"),
             ])
 
-        table = Table(data)
+        table = Table(data, repeatRows=1)
 
-        doc.build([table])
+        # 🎨 Estilos de tabla
+        table.setStyle(TableStyle([
+            # Encabezado
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2c3e50")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+
+            # Celdas
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("BACKGROUND", (0, 1), (-1, -1), colors.whitesmoke),
+
+            # Padding
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
+            ("TOPPADDING", (0, 0), (-1, 0), 10),
+        ]))
+
+        elements.append(table)
+
+        doc.build(elements)
 
         return response
     
     
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from django.http import HttpResponse
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+
 class ReporteActivosPorAreaPDFView(APIView):
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request, area_id):
 
+        activos = Activo.objects.select_related(
+            "tipo_activo",
+            "area"
+        ).filter(area_id=area_id)
+
+        # 🟢 Obtener nombre del área (para mostrar en el PDF)
+        area_nombre = activos.first().area.nombre if activos.exists() else "Sin datos"
+
         response = HttpResponse(content_type="application/pdf")
         response["Content-Disposition"] = "attachment; filename=reporte_activos_area.pdf"
 
-        doc = SimpleDocTemplate(response, pagesize=letter)
+        doc = SimpleDocTemplate(
+            response,
+            pagesize=letter,
+            rightMargin=40,
+            leftMargin=40,
+            topMargin=40,
+            bottomMargin=40
+        )
 
+        elements = []
+        styles = getSampleStyleSheet()
+
+        # 🎯 Estilos
+        title_style = ParagraphStyle(
+            name="TitleStyle",
+            fontSize=18,
+            alignment=TA_CENTER,
+            spaceAfter=10,
+            leading=22
+        )
+
+        subtitle_style = ParagraphStyle(
+            name="SubTitleStyle",
+            fontSize=12,
+            alignment=TA_CENTER,
+            spaceAfter=15
+        )
+
+        logo_style = ParagraphStyle(
+            name="LogoStyle",
+            fontSize=10,
+            alignment=TA_RIGHT
+        )
+
+        # 🧾 Encabezado
+        header_data = [
+            [
+                Paragraph("REPORTE DE ACTIVOS POR ÁREA", title_style),
+                Paragraph("LOGO", logo_style)
+            ]
+        ]
+
+        header_table = Table(header_data, colWidths=[400, 100])
+        elements.append(header_table)
+
+        # 📌 Subtítulo con el área
+        elements.append(Paragraph(f"Área: {area_nombre}", subtitle_style))
+        elements.append(Spacer(1, 10))
+
+        # 📊 Tabla
         data = [[
             "ID",
             "Nombre",
             "Tipo",
-            "Area",
+            "Área",
             "Estado",
-            "Frecuencia Mant.",
-            "Fecha Registro"
+            "Frecuencia",
+            "Fecha"
         ]]
-
-        activos = Activo.objects.select_related(
-            "tipo_activo",
-            "area"
-        ).filter(area_id=area_id)  # FILTRO
 
         for a in activos:
             data.append([
-                a.id,
+                str(a.id),
                 a.nombre,
                 a.tipo_activo.nombre,
                 a.area.nombre,
                 a.estado,
-                a.frecuencia_mantenimiento,
+                str(a.frecuencia_mantenimiento),
                 a.fecha_registro.strftime("%Y-%m-%d"),
             ])
 
-        table = Table(data)
+        table = Table(data, repeatRows=1)
 
-        doc.build([table])
+        # 🎨 Estilos de tabla
+        table.setStyle(TableStyle([
+            # Header
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2c3e50")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+
+            # Celdas
+            ("BACKGROUND", (0, 1), (-1, -1), colors.whitesmoke),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+
+            # Padding
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
+            ("TOPPADDING", (0, 0), (-1, 0), 10),
+        ]))
+
+        elements.append(table)
+
+        doc.build(elements)
 
         return response
 

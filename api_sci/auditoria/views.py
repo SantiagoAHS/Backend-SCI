@@ -192,7 +192,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 
 from .models import Auditoria, DetalleAuditoria
 
@@ -214,22 +215,49 @@ def generar_pdf_auditoria(request, pk):
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="auditoria_{auditoria.id}.pdf"'
 
-    doc = SimpleDocTemplate(response)
-    styles = getSampleStyleSheet()
+    doc = SimpleDocTemplate(
+        response,
+        rightMargin=40,
+        leftMargin=40,
+        topMargin=40,
+        bottomMargin=40
+    )
 
+    styles = getSampleStyleSheet()
     elementos = []
 
-    # 🔹 Título
-    elementos.append(Paragraph("Reporte de Auditoría", styles['Title']))
-    elementos.append(Spacer(1, 12))
+    # 🎯 Estilos personalizados
+    title_style = ParagraphStyle(
+        name="TitleStyle",
+        fontSize=18,
+        alignment=TA_CENTER,
+        spaceAfter=10
+    )
 
-    # 🔹 Info
-    elementos.append(Paragraph(f"Nombre: {auditoria.nombre}", styles['Normal']))
-    elementos.append(Paragraph(f"Responsable: {auditoria.responsable}", styles['Normal']))
-    elementos.append(Paragraph(f"Estado: {auditoria.estado}", styles['Normal']))
-    elementos.append(Paragraph(f"Fecha inicio: {auditoria.creado_en}", styles['Normal']))
-    elementos.append(Paragraph(f"Fecha fin: {auditoria.fecha_fin}", styles['Normal']))
-    elementos.append(Spacer(1, 12))
+    logo_style = ParagraphStyle(
+        name="LogoStyle",
+        fontSize=10,
+        alignment=TA_RIGHT
+    )
+
+    # 🧾 HEADER (Título + Logo)
+    header = Table([
+        [
+            Paragraph("REPORTE DE AUDITORÍA", title_style),
+            Paragraph("LOGO", logo_style)
+        ]
+    ], colWidths=[400, 100])
+
+    elementos.append(header)
+    elementos.append(Spacer(1, 15))
+
+    # 🔹 Info (igual que tú, solo mejor ordenado)
+    elementos.append(Paragraph(f"<b>Nombre:</b> {auditoria.nombre}", styles['Normal']))
+    elementos.append(Paragraph(f"<b>Responsable:</b> {auditoria.responsable}", styles['Normal']))
+    elementos.append(Paragraph(f"<b>Estado:</b> {auditoria.estado}", styles['Normal']))
+    elementos.append(Paragraph(f"<b>Fecha inicio:</b> {auditoria.creado_en}", styles['Normal']))
+    elementos.append(Paragraph(f"<b>Fecha fin:</b> {auditoria.fecha_fin}", styles['Normal']))
+    elementos.append(Spacer(1, 15))
 
     # 🔹 Tabla
     data = [["ID", "Activo", "Sistema", "Real", "Resultado"]]
@@ -240,7 +268,7 @@ def generar_pdf_auditoria(request, pk):
     for d in detalles:
 
         estado_sistema = d.activo.estado
-        estado_real = getattr(d, "estado_real", None)  # 
+        estado_real = getattr(d, "estado_real", None)
 
         if estado_sistema == estado_real:
             estado_texto = "Correcto"
@@ -250,7 +278,7 @@ def generar_pdf_auditoria(request, pk):
             incorrectos += 1
 
         data.append([
-            d.activo.id,
+            str(d.activo.id),
             str(d.activo.nombre),
             estado_sistema,
             estado_real if estado_real else "Sin registro",
@@ -258,16 +286,30 @@ def generar_pdf_auditoria(request, pk):
         ])
 
     # 🔹 Resumen
-    elementos.append(Paragraph(f"Correctos: {correctos}", styles['Normal']))
-    elementos.append(Paragraph(f"Incorrectos: {incorrectos}", styles['Normal']))
-    elementos.append(Spacer(1, 12))
+    elementos.append(Paragraph(f"<b>Correctos:</b> {correctos}", styles['Normal']))
+    elementos.append(Paragraph(f"<b>Incorrectos:</b> {incorrectos}", styles['Normal']))
+    elementos.append(Spacer(1, 15))
 
-    tabla = Table(data)
+    # 📊 Tabla con ancho completo
+    tabla = Table(
+        data,
+        colWidths=[50, 150, 100, 100, 100]  # 🔥 Ajuste de ancho
+    )
 
     tabla.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        # Header
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#7b241c")),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+
+        # Filas
+        ('BACKGROUND', (0, 1), (-1, -1), colors.whitesmoke),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+
+        # Padding
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('TOPPADDING', (0, 0), (-1, 0), 10),
     ]))
 
     elementos.append(tabla)
