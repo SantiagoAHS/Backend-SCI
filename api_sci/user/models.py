@@ -1,3 +1,5 @@
+from fileinput import filename
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 import uuid
@@ -48,3 +50,23 @@ class PasswordResetToken(models.Model):
 
     def is_expired(self):
         return self.created_at < timezone.now() - timedelta(hours=1)
+    
+    
+from django.db import models
+from django.conf import settings
+from django.core.files.storage import FileSystemStorage
+
+private_storage = FileSystemStorage(location=settings.PRIVATE_MEDIA_ROOT)
+
+class BackupHistorial(models.Model):
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE
+    )
+    fecha = models.DateTimeField(auto_now_add=True)
+    archivo = models.FileField(upload_to="backups/", storage=private_storage)
+    nombre = models.CharField(max_length=255)
+    descargado = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.nombre} - {self.usuario}"

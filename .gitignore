@@ -5,3 +5,6 @@ db.sqlite3
 .env
 .env.*
 .DS_Store
+
+media/
+private_media/

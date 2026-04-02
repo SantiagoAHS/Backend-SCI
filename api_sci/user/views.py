@@ -323,3 +323,143 @@ class ResetPasswordView(APIView):
         token_obj.delete()
 
         return Response({"message": "Contraseña actualizada correctamente"})
+    
+import os
+from datetime import datetime
+from django.conf import settings
+from django.core.files import File
+from django.contrib.auth import authenticate
+from django.db import connection
+from django.http import FileResponse
+
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from .models import BackupHistorial
+
+
+# 🔹 GENERAR BACKUP
+class GenerarBackupView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+
+        user = request.user
+        password = request.data.get("password")
+
+        # 🔒 Solo admin
+        if user.rol != "admin":
+            return Response({"error": "No autorizado"}, status=403)
+
+        # 🔐 Validar contraseña
+        if not password:
+            return Response({"error": "Debes ingresar tu contraseña"}, status=400)
+
+        user_auth = authenticate(username=user.username, password=password)
+
+        if not user_auth:
+            return Response({"error": "Contraseña incorrecta"}, status=400)
+
+        try:
+            # 📅 Nombre del backup
+            fecha = datetime.now().strftime("%Y%m%d_%H%M%S")
+            nombre_archivo = f"backup_{fecha}.sqlite3"
+
+            # 📂 Ruta DB
+            db_path = settings.DATABASES["default"]["NAME"]
+
+            # ⚠️ Cerrar conexión (SQLite)
+            connection.close()
+
+            # 💾 Guardar backup
+            with open(db_path, "rb") as f:
+                backup = BackupHistorial.objects.create(
+                    usuario=user,
+                    nombre=nombre_archivo
+                )
+                backup.archivo.save(nombre_archivo, File(f))
+
+            return Response({
+                "message": "Backup generado correctamente"
+            })
+
+        except Exception as e:
+            return Response({
+                "error": str(e)
+            }, status=500)
+
+
+# 🔹 HISTORIAL
+class HistorialBackupView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        # 🔒 Solo admin
+        if request.user.rol != "admin":
+            return Response({"error": "No autorizado"}, status=403)
+
+        backups = BackupHistorial.objects.all().order_by("-fecha")
+
+        data = [
+            {
+                "id": b.id,
+                "nombre": b.nombre,
+                "usuario": b.usuario.username,
+                "fecha": b.fecha.strftime("%Y-%m-%d %H:%M"),
+                "archivo": b.archivo.url if b.archivo else None,
+                "descargado": b.descargado,  # 🔥 nuevo
+            }
+            for b in backups
+        ]
+
+        return Response(data)
+
+
+class DescargarBackupView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, backup_id):
+
+        # 🔒 Solo admin
+        if request.user.rol != "admin":
+            return Response({"error": "No autorizado"}, status=403)
+
+        try:
+            # 🔐 Solo sus propios backups
+            backup = BackupHistorial.objects.get(
+                id=backup_id,
+                usuario=request.user
+            )
+        except BackupHistorial.DoesNotExist:
+            return Response({"error": "Backup no encontrado"}, status=404)
+
+        # ❌ Ya descargado → bloquear
+        if backup.descargado:
+            return Response(
+                {"error": "Este backup ya fue descargado y está bloqueado"},
+                status=403
+            )
+
+        try:
+            file_path = backup.archivo.path
+
+            if not os.path.exists(file_path):
+                return Response({"error": "Archivo no encontrado"}, status=404)
+
+            # 📥 Marcar como descargado
+            backup.descargado = True
+            backup.save()
+
+            return FileResponse(
+                open(file_path, "rb"),
+                as_attachment=True,
+                filename=backup.nombre
+            )
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)

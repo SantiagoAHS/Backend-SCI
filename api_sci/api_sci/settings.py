@@ -151,6 +151,9 @@ REST_FRAMEWORK = {
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
+# NUEVO (privado)
+PRIVATE_MEDIA_ROOT = os.path.join(BASE_DIR, "private_media")
+
 FRONTEND_URL = "http://localhost:3000"
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

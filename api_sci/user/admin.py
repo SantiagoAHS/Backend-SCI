@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import User
+from .models import BackupHistorial
 
 
 @admin.register(User)
@@ -55,3 +56,32 @@ class CustomUserAdmin(UserAdmin):
             'fields': ('numero_empleado', 'rol', 'telefono', 'cargo', 'activo')
         }),
     )
+
+@admin.register(BackupHistorial)
+class BackupHistorialAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "id",
+        "nombre",
+        "usuario",
+        "fecha",
+        "descargado",
+    )
+
+    list_filter = (
+        "descargado",
+        "fecha",
+        "usuario",
+    )
+
+    search_fields = (
+        "nombre",
+        "usuario__username",
+    )
+
+    readonly_fields = (
+        "fecha",
+        "archivo",
+    )
+
+    ordering = ("-fecha",)
