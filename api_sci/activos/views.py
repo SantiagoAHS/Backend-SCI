@@ -1,30 +1,45 @@
 from rest_framework import generics, status
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.generics import RetrieveAPIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import PermissionDenied
 from django.db import transaction
-from datetime import datetime
-from rest_framework.generics import RetrieveAPIView
-from rest_framework.permissions import AllowAny
-
 from django.db.models import Count
 from django.http import HttpResponse
-
-import openpyxl
-from reportlab.platypus import SimpleDocTemplate, Table
-from reportlab.lib.pagesizes import letter
+from django.conf import settings
+from datetime import datetime
 import json
-
-
-from .models import TipoActivo, Activo, Caracteristica, OpcionCaracteristica, ValorCaracteristica
+import os
+import zipfile
+from io import BytesIO
+import openpyxl
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Table,
+    TableStyle,
+    Paragraph,
+    Spacer
+)
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+import qrcode
+from .models import (
+    TipoActivo,
+    Activo,
+    Caracteristica,
+    OpcionCaracteristica,
+    ValorCaracteristica
+)
 from .serializers import (
     TipoActivoSerializer,
     ActivoCreateSerializer,
     ActivoListSerializer
 )
 
-# 🔹 Listar y crear tipos de activo
+# Listar y crear tipos de activo
 class TipoActivoListCreateView(generics.ListCreateAPIView):
     queryset = TipoActivo.objects.all()
     serializer_class = TipoActivoSerializer
@@ -35,7 +50,7 @@ class TipoActivoListCreateView(generics.ListCreateAPIView):
             raise PermissionDenied("No autorizado")
         serializer.save()
 
-# 🔹 Crear activo con validación de características
+# Crear activo con validación de características
 class ActivoCreateView(generics.CreateAPIView):
 
     queryset = Activo.objects.all()
@@ -48,7 +63,7 @@ class ActivoCreateView(generics.CreateAPIView):
 
         valores = data.get("valores")
 
-        # 🔹 convertir JSON string a lista
+        # convertir JSON string a lista
         if isinstance(valores, str):
             valores = json.loads(valores)
 
@@ -57,7 +72,7 @@ class ActivoCreateView(generics.CreateAPIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=400)
 
-        # 🔹 VALIDAR TODO ANTES DE GUARDAR
+        # VALIDAR TODO ANTES DE GUARDAR
         if valores:
 
             for v in valores:
@@ -72,7 +87,7 @@ class ActivoCreateView(generics.CreateAPIView):
                 tipo = caracteristica.tipo_dato
                 tamano = caracteristica.tamano
 
-                # 🔹 TEXTO
+                # TEXTO
                 if tipo == "text":
 
                     if valor_texto is None:
@@ -86,7 +101,7 @@ class ActivoCreateView(generics.CreateAPIView):
                             status=400
                         )
 
-                # 🔹 ENTERO
+                # ENTERO
                 elif tipo == "int":
 
                     try:
@@ -107,7 +122,7 @@ class ActivoCreateView(generics.CreateAPIView):
                             status=400
                         )
 
-                # 🔹 DECIMAL
+                # DECIMAL
                 elif tipo == "float":
 
                     try:
@@ -128,7 +143,7 @@ class ActivoCreateView(generics.CreateAPIView):
                             status=400
                         )
 
-                # 🔹 FECHA
+                # FECHA
                 elif tipo == "date":
 
                     if not valor_texto:
@@ -146,7 +161,7 @@ class ActivoCreateView(generics.CreateAPIView):
 
                         datetime.strptime(fecha, "%Y-%m-%d")
 
-                        # 🔹 guardar fecha limpia
+                        # guardar fecha limpia
                         v["valor_texto"] = fecha
 
                     except ValueError:
@@ -157,7 +172,7 @@ class ActivoCreateView(generics.CreateAPIView):
                             status=400
                         )
 
-                # 🔹 BOOLEANO
+                # BOOLEANO
                 elif tipo == "boolean":
 
                     if str(valor_texto).lower() not in ["true", "false", "1", "0"]:
@@ -168,7 +183,7 @@ class ActivoCreateView(generics.CreateAPIView):
                             status=400
                         )
 
-                # 🔹 SELECT
+                # SELECT
                 elif tipo == "select":
 
                     if v.get("opcion"):
@@ -193,7 +208,7 @@ class ActivoCreateView(generics.CreateAPIView):
                             status=400
                         )
 
-        # 🔹 GUARDAR SOLO SI TODO ES VÁLIDO
+        # GUARDAR SOLO SI TODO ES VÁLIDO
         with transaction.atomic():
 
             activo = serializer.save()
@@ -225,7 +240,7 @@ class ActivoCreateView(generics.CreateAPIView):
             status=status.HTTP_201_CREATED
         )
     
-# 🔹 Desactivar tipo de activo
+# Desactivar tipo de activo
 class TipoActivoDeleteView(generics.DestroyAPIView):
     permission_classes = [IsAuthenticated]
 
@@ -247,7 +262,7 @@ class TipoActivoDeleteView(generics.DestroyAPIView):
         )
 
 
-# 🔹 Listar activos
+# Listar activos
 class ActivoListView(generics.ListAPIView):
 
     serializer_class = ActivoListSerializer
@@ -262,7 +277,7 @@ class ActivoListView(generics.ListAPIView):
             "valores__opcion"
         )
     
-# 🔹 Listar activos disponibles
+# Listar activos disponibles
 class ActivoDisponibleListView(generics.ListAPIView):
 
     serializer_class = ActivoListSerializer
@@ -280,7 +295,7 @@ class ActivoDisponibleListView(generics.ListAPIView):
         )
 
 
-# 🔹 Eliminar activo
+# Eliminar activo
 class ActivoDeleteView(generics.DestroyAPIView):
 
     queryset = Activo.objects.all()
@@ -300,7 +315,7 @@ class ActivoDeleteView(generics.DestroyAPIView):
         )
 
 
-# 🔹 Dashboard
+# Dashboard
 class DashboardStatsView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -334,7 +349,7 @@ class DashboardStatsView(APIView):
         })
 
 
-# 🔹 Reporte Excel
+# Reporte Excel
 class ReporteActivosExcelView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -384,16 +399,7 @@ class ReporteActivosExcelView(APIView):
         return response
 
 
-# 🔹 Reporte PDF
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from django.http import HttpResponse
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_RIGHT
-
+# Reporte PDF
 class ReporteActivosPDFView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -429,7 +435,7 @@ class ReporteActivosPDFView(APIView):
 
         styles = getSampleStyleSheet()
 
-        # 🎯 Estilos personalizados
+        # Estilos personalizados
         title_style = ParagraphStyle(
             name="TitleStyle",
             fontSize=18,
@@ -444,7 +450,7 @@ class ReporteActivosPDFView(APIView):
             alignment=TA_RIGHT
         )
 
-        # 🧾 Encabezado (Logo + Título)
+        # Encabezado (Logo + Título)
         header_data = [
             [
                 Paragraph("REPORTE DE ACTIVOS", title_style),
@@ -456,7 +462,7 @@ class ReporteActivosPDFView(APIView):
         elements.append(header_table)
         elements.append(Spacer(1, 20))
 
-        # 📊 Datos de tabla
+        # Datos de tabla
         data = [[
             "ID",
             "Nombre",
@@ -480,7 +486,7 @@ class ReporteActivosPDFView(APIView):
 
         table = Table(data, repeatRows=1)
 
-        # 🎨 Estilos de tabla
+        # Estilos de tabla
         table.setStyle(TableStyle([
             # Encabezado
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2c3e50")),
@@ -504,15 +510,6 @@ class ReporteActivosPDFView(APIView):
         return response
     
     
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from django.http import HttpResponse
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_RIGHT
-
 class ReporteActivosPorAreaPDFView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -524,7 +521,7 @@ class ReporteActivosPorAreaPDFView(APIView):
             "area"
         ).filter(area_id=area_id)
 
-        # 🟢 Obtener nombre del área (para mostrar en el PDF)
+        # Obtener nombre del área (para mostrar en el PDF)
         area_nombre = activos.first().area.nombre if activos.exists() else "Sin datos"
 
         response = HttpResponse(content_type="application/pdf")
@@ -542,7 +539,7 @@ class ReporteActivosPorAreaPDFView(APIView):
         elements = []
         styles = getSampleStyleSheet()
 
-        # 🎯 Estilos
+        # Estilos
         title_style = ParagraphStyle(
             name="TitleStyle",
             fontSize=18,
@@ -564,7 +561,7 @@ class ReporteActivosPorAreaPDFView(APIView):
             alignment=TA_RIGHT
         )
 
-        # 🧾 Encabezado
+        # Encabezado
         header_data = [
             [
                 Paragraph("REPORTE DE ACTIVOS POR ÁREA", title_style),
@@ -579,7 +576,7 @@ class ReporteActivosPorAreaPDFView(APIView):
         elements.append(Paragraph(f"Área: {area_nombre}", subtitle_style))
         elements.append(Spacer(1, 10))
 
-        # 📊 Tabla
+        # Tabla
         data = [[
             "ID",
             "Nombre",
@@ -603,7 +600,7 @@ class ReporteActivosPorAreaPDFView(APIView):
 
         table = Table(data, repeatRows=1)
 
-        # 🎨 Estilos de tabla
+        # Estilos de tabla
         table.setStyle(TableStyle([
             # Header
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2c3e50")),
@@ -631,15 +628,6 @@ class ActivoDetailView(RetrieveAPIView):
     serializer_class = ActivoListSerializer
     permission_classes = [AllowAny]
 
-
-import qrcode
-import zipfile
-import os
-from io import BytesIO
-from django.http import HttpResponse
-from django.conf import settings
-from django.conf import settings
-from .models import Activo
 
 class DescargarQRActivosView(APIView):
 

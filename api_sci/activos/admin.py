@@ -8,13 +8,13 @@ from .models import (
 )
 
 
-# 🔹 Inline para opciones dentro de cada característica
+# Inline para opciones dentro de cada característica
 class OpcionCaracteristicaInline(admin.TabularInline):
     model = OpcionCaracteristica
     extra = 1
 
 
-# 🔹 Inline para características dentro del TipoActivo
+# Inline para características dentro del TipoActivo
 class CaracteristicaInline(admin.TabularInline):
     model = Caracteristica
     extra = 1
@@ -32,7 +32,7 @@ class TipoActivoAdmin(admin.ModelAdmin):
         return TipoActivo.all_objects.all()
 
 
-# 🔹 Admin de Caracteristicas
+# Admin de Caracteristicas
 @admin.register(Caracteristica)
 class CaracteristicaAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'tipo_activo', 'tipo_dato', 'obligatorio')
@@ -41,7 +41,7 @@ class CaracteristicaAdmin(admin.ModelAdmin):
     inlines = [OpcionCaracteristicaInline]
 
 
-# 🔹 Inline para valores dentro del Activo
+# Inline para valores dentro del Activo
 class ValorCaracteristicaInline(admin.TabularInline):
     model = ValorCaracteristica
     extra = 0
@@ -68,7 +68,7 @@ class ActivoAdmin(admin.ModelAdmin):
     inlines = [ValorCaracteristicaInline]
 
 
-# 🔹 Admin para opciones de característica
+# Admin para opciones de característica
 @admin.register(OpcionCaracteristica)
 class OpcionCaracteristicaAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'caracteristica')
@@ -76,7 +76,7 @@ class OpcionCaracteristicaAdmin(admin.ModelAdmin):
     search_fields = ('nombre',)
 
 
-# 🔹 Admin para valores de características
+# Admin para valores de características
 @admin.register(ValorCaracteristica)
 class ValorCaracteristicaAdmin(admin.ModelAdmin):
     list_display = (

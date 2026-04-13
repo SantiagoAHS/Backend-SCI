@@ -10,14 +10,14 @@ from prestamos.serializers import PrestamoInfoSerializer
 from mantenimientos.serializers import MantenimientoInfoSerializer
 
 
-# 🔹 Opciones de característica
+# Opciones de característica
 class OpcionCaracteristicaSerializer(serializers.ModelSerializer):
     class Meta:
         model = OpcionCaracteristica
         fields = ['id', 'nombre']
 
 
-# 🔹 Características
+# Características
 class CaracteristicaSerializer(serializers.ModelSerializer):
 
     opciones = OpcionCaracteristicaSerializer(many=True, required=False)
@@ -52,7 +52,7 @@ class CaracteristicaSerializer(serializers.ModelSerializer):
 
         return data
 
-# 🔹 Tipo de activo
+# Tipo de activo
 class TipoActivoSerializer(serializers.ModelSerializer):
 
     caracteristicas = CaracteristicaSerializer(many=True)
@@ -112,7 +112,7 @@ class TipoActivoSerializer(serializers.ModelSerializer):
         return tipo_activo
 
 
-# 🔹 Crear valor de característica
+# Crear valor de característica
 class ValorCaracteristicaCreateSerializer(serializers.Serializer):
 
     caracteristica = serializers.IntegerField()
@@ -120,7 +120,7 @@ class ValorCaracteristicaCreateSerializer(serializers.Serializer):
     opcion = serializers.IntegerField(required=False)
 
 
-# 🔹 Crear activo
+# Crear activo
 class ActivoCreateSerializer(serializers.ModelSerializer):
 
     valores = ValorCaracteristicaCreateSerializer(many=True, required=False)
@@ -180,7 +180,7 @@ class ActivoCreateSerializer(serializers.ModelSerializer):
         return activo
 
 
-# 🔹 Serializer para mostrar valores
+# Serializer para mostrar valores
 class ValorCaracteristicaSerializer(serializers.ModelSerializer):
 
     caracteristica = CaracteristicaSerializer()
@@ -196,7 +196,7 @@ class ValorCaracteristicaSerializer(serializers.ModelSerializer):
         ]
 
 
-# 🔹 Lista de activos
+# Lista de activos
 class ActivoListSerializer(serializers.ModelSerializer):
 
     tipo_activo = serializers.StringRelatedField()
