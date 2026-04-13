@@ -1,16 +1,27 @@
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, generics
 from rest_framework.exceptions import PermissionDenied
 from django.utils import timezone
-from rest_framework import generics
-from .serializers import AuditoriaDetalleSerializer
-from .serializers import DetalleAuditoriaSerializer
-from .serializers import AuditoriaSerializer
-
+from django.http import HttpResponse
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    Table,
+    TableStyle
+)
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from activos.models import Activo
 from .models import Auditoria, DetalleAuditoria
+from .serializers import (
+    AuditoriaSerializer,
+    AuditoriaDetalleSerializer,
+    DetalleAuditoriaSerializer
+)
 
 
 @api_view(["POST"])
@@ -94,12 +105,12 @@ def iniciar_auditoria_area(request):
     except Area.DoesNotExist:
         return Response({"error": "Área no encontrada"}, status=status.HTTP_404_NOT_FOUND)
 
-    # 🔹 Evitar duplicar "Auditoría" si el área ya lo tiene
+    # Evitar duplicar "Auditoría" si el área ya lo tiene
     area_nombre = area.nombre
     if not area_nombre.lower().startswith("auditoría"):
         area_nombre = f"{area_nombre}"
 
-    # 🔹 Crear auditoría
+    # Crear auditoría
     auditoria = Auditoria.objects.create(
         nombre=f"Auditoría {area_nombre} {timezone.now().strftime('%Y-%m-%d %H:%M')}",
         responsable=request.user.username,
@@ -107,7 +118,7 @@ def iniciar_auditoria_area(request):
         area=area
     )
 
-    # 🔹 Filtrar activos solo de esa área
+    # Filtrar activos solo de esa área
     activos = Activo.objects.filter(area=area)
 
     for activo in activos:
@@ -148,7 +159,7 @@ def iniciar_auditoria_tipo(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    # 🔹 Mapear tipo → estado real en Activo
+    # Mapear tipo → estado real en Activo
     MAPEO_TIPO_ESTADO = {
         "mantenimiento": "mantenimiento",
         "prestamo": "asignado",  
@@ -157,7 +168,7 @@ def iniciar_auditoria_tipo(request):
 
     estado_filtro = MAPEO_TIPO_ESTADO.get(tipo)
 
-    # 🔹 Crear auditoría
+    # Crear auditoría
     auditoria = Auditoria.objects.create(
         nombre=f"Auditoría {tipo.capitalize()} {timezone.now().strftime('%Y-%m-%d %H:%M')}",
         responsable=request.user.username,
@@ -165,15 +176,15 @@ def iniciar_auditoria_tipo(request):
         estado="en_proceso"
     )
 
-    # 🔹 Filtrar activos
+    # Filtrar activos
     activos = Activo.objects.filter(estado=estado_filtro)
 
-    # 🔹 DEBUG (opcional)
+    # DEBUG (opcional)
     print("TIPO:", tipo)
     print("ESTADO FILTRO:", estado_filtro)
     print("ACTIVOS ENCONTRADOS:", activos.count())
 
-    # 🔹 Crear detalles
+    # Crear detalles
     for activo in activos:
         DetalleAuditoria.objects.create(
             auditoria=auditoria,
@@ -185,17 +196,6 @@ def iniciar_auditoria_tipo(request):
         "auditoria_id": auditoria.id,
         "total_activos": activos.count()
     }, status=status.HTTP_201_CREATED)
-
-from django.http import HttpResponse
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_RIGHT
-
-from .models import Auditoria, DetalleAuditoria
 
 
 @api_view(["GET"])
@@ -226,7 +226,7 @@ def generar_pdf_auditoria(request, pk):
     styles = getSampleStyleSheet()
     elementos = []
 
-    # 🎯 Estilos personalizados
+    # Estilos personalizados
     title_style = ParagraphStyle(
         name="TitleStyle",
         fontSize=18,
@@ -240,7 +240,7 @@ def generar_pdf_auditoria(request, pk):
         alignment=TA_RIGHT
     )
 
-    # 🧾 HEADER (Título + Logo)
+    # HEADER (Título + Logo)
     header = Table([
         [
             Paragraph("REPORTE DE AUDITORÍA", title_style),
@@ -251,7 +251,7 @@ def generar_pdf_auditoria(request, pk):
     elementos.append(header)
     elementos.append(Spacer(1, 15))
 
-    # 🔹 Info (igual que tú, solo mejor ordenado)
+    # Info (igual que tú, solo mejor ordenado)
     elementos.append(Paragraph(f"<b>Nombre:</b> {auditoria.nombre}", styles['Normal']))
     elementos.append(Paragraph(f"<b>Responsable:</b> {auditoria.responsable}", styles['Normal']))
     elementos.append(Paragraph(f"<b>Estado:</b> {auditoria.estado}", styles['Normal']))
@@ -259,7 +259,7 @@ def generar_pdf_auditoria(request, pk):
     elementos.append(Paragraph(f"<b>Fecha fin:</b> {auditoria.fecha_fin}", styles['Normal']))
     elementos.append(Spacer(1, 15))
 
-    # 🔹 Tabla
+    # Tabla
     data = [["ID", "Activo", "Sistema", "Real", "Resultado"]]
 
     correctos = 0
@@ -285,15 +285,15 @@ def generar_pdf_auditoria(request, pk):
             estado_texto
         ])
 
-    # 🔹 Resumen
+    # Resumen
     elementos.append(Paragraph(f"<b>Correctos:</b> {correctos}", styles['Normal']))
     elementos.append(Paragraph(f"<b>Incorrectos:</b> {incorrectos}", styles['Normal']))
     elementos.append(Spacer(1, 15))
 
-    # 📊 Tabla con ancho completo
+    # Tabla con ancho completo
     tabla = Table(
         data,
-        colWidths=[50, 150, 100, 100, 100]  # 🔥 Ajuste de ancho
+        colWidths=[50, 150, 100, 100, 100]  # Ajuste de ancho
     )
 
     tabla.setStyle(TableStyle([

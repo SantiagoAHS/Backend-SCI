@@ -64,7 +64,7 @@ class DetalleAuditoria(models.Model):
         related_name="auditorias"
     )
 
-    # 🔹 Datos del sistema (se guardan automáticamente)
+    # Datos del sistema (se guardan automáticamente)
     estado_sistema = models.CharField(max_length=20, blank=True)
     
     area_sistema = models.ForeignKey(
@@ -75,7 +75,7 @@ class DetalleAuditoria(models.Model):
         related_name="+"
     )
 
-    # 🔹 Datos reales (los llena el usuario)
+    # Datos reales (los llena el usuario)
     estado_real = models.CharField(
         max_length=20,
         blank=True,

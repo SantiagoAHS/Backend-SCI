@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import Auditoria, DetalleAuditoria
 
 
-# 🔹 Inline para ver detalles dentro de la auditoría
+# Inline para ver detalles dentro de la auditoría
 class DetalleAuditoriaInline(admin.TabularInline):
     model = DetalleAuditoria
     extra = 0
@@ -17,7 +17,7 @@ class DetalleAuditoriaInline(admin.TabularInline):
     )
 
 
-# 🔹 Auditoría
+# Auditoría
 @admin.register(Auditoria)
 class AuditoriaAdmin(admin.ModelAdmin):
     list_display = ("id", "nombre", "responsable", "estado", "fecha_inicio", "fecha_fin")
@@ -26,7 +26,7 @@ class AuditoriaAdmin(admin.ModelAdmin):
     inlines = [DetalleAuditoriaInline]
 
 
-# 🔹 Detalle de auditoría
+# Detalle de auditoría
 @admin.register(DetalleAuditoria)
 class DetalleAuditoriaAdmin(admin.ModelAdmin):
     list_display = (
