@@ -1,18 +1,27 @@
 from rest_framework.generics import CreateAPIView, ListAPIView
-from rest_framework.permissions import IsAuthenticated
-from .models import Prestamo
-from .serializers import PrestamoCreateSerializer, PrestamoListSerializer
-from .utils import actualizar_prestamos_vencidos
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from datetime import timedelta
 from django.http import HttpResponse
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter
 from datetime import datetime, timedelta
+from reportlab.pdfgen import canvas
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Table,
+    TableStyle,
+    Paragraph,
+    Spacer
+)
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+from .models import Prestamo
+from .serializers import PrestamoCreateSerializer, PrestamoListSerializer
+from .utils import actualizar_prestamos_vencidos
 
 
 class PrestamoCreateView(CreateAPIView):
@@ -102,16 +111,6 @@ class NotificacionesPrestamosView(APIView):
         return Response(data)
     
 
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from django.http import HttpResponse
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_RIGHT
-from datetime import datetime, timedelta
-
 class ReportePrestamosPDFView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -123,7 +122,7 @@ class ReportePrestamosPDFView(APIView):
 
         prestamos = Prestamo.objects.select_related("activo", "area").all()
 
-        # 🔍 Filtros
+        # Filtros
         if fecha_inicio:
             fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
             prestamos = prestamos.filter(fecha_inicio__gte=fecha_inicio)
@@ -147,7 +146,7 @@ class ReportePrestamosPDFView(APIView):
         elements = []
         styles = getSampleStyleSheet()
 
-        # 🎯 Estilos
+        # Estilos
         title_style = ParagraphStyle(
             name="TitleStyle",
             fontSize=18,
@@ -169,7 +168,7 @@ class ReportePrestamosPDFView(APIView):
             alignment=TA_RIGHT
         )
 
-        # 🧾 Header
+        # Header
         header_data = [
             [
                 Paragraph("REPORTE DE PRÉSTAMOS", title_style),
@@ -180,14 +179,14 @@ class ReportePrestamosPDFView(APIView):
         header_table = Table(header_data, colWidths=[400, 100])
         elements.append(header_table)
 
-        # 📅 Mostrar filtros aplicados
+        # Mostrar filtros aplicados
         if fecha_inicio or fecha_fin:
             rango = f"Desde: {fecha_inicio.strftime('%Y-%m-%d') if fecha_inicio else '---'}  |  Hasta: {fecha_fin.strftime('%Y-%m-%d') if fecha_fin else '---'}"
             elements.append(Paragraph(rango, subtitle_style))
 
         elements.append(Spacer(1, 10))
 
-        # 📊 Tabla
+        # Tabla
         data = [[
             "Activo",
             "Responsable",
@@ -211,7 +210,7 @@ class ReportePrestamosPDFView(APIView):
 
         table = Table(data, repeatRows=1)
 
-        # 🎨 Estilo profesional
+        # Estilo profesional
         table.setStyle(TableStyle([
             # Header
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f4e79")),

@@ -13,7 +13,7 @@ class PrestamoCreateSerializer(serializers.ModelSerializer):
     def validate(self, data):
         activo = data["activo"]
 
-        # 🔹 Verificar si el activo ya tiene un préstamo activo
+        # Verificar si el activo ya tiene un préstamo activo
         prestamo_activo = activo.prestamos.filter(
             estado="activo"
         ).exists()
@@ -23,7 +23,7 @@ class PrestamoCreateSerializer(serializers.ModelSerializer):
                 "Este activo ya está prestado."
             )
 
-        # 🔹 Verificar si está en mantenimiento
+        # Verificar si está en mantenimiento
         mantenimiento = activo.mantenimientos.filter(
             estado="en_proceso"
         ).exists()
