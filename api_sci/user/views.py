@@ -1,17 +1,30 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
-from rest_framework.authtoken.models import Token
+from django.conf import settings
 from django.contrib.auth import authenticate
-from .models import PasswordResetToken, User
-from .serializers import UserSerializer, RegisterSerializer, UserUpdateSerializer, AdminUserUpdateSerializer
-from rest_framework.permissions import IsAuthenticated
-from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.core.mail import send_mail
-from django.conf import settings
-from .models import EmailVerificationToken
+from django.core.files import File
+from django.db import connection
+from django.http import FileResponse
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.authtoken.models import Token
+from rest_framework import status
+from .models import (
+    User,
+    PasswordResetToken,
+    EmailVerificationToken,
+    BackupHistorial
+)
+from .serializers import (
+    UserSerializer,
+    RegisterSerializer,
+    UserUpdateSerializer,
+    AdminUserUpdateSerializer
+)
 import resend
+import os
+from datetime import datetime
 
 
 class UserUpdateView(APIView):
@@ -233,7 +246,7 @@ class VerifyEmailView(APIView):
             return Response({"error": "Token inválido"}, status=400)
 
         if token_obj.is_expired():
-            token_obj.delete()  # 🔥 limpiar
+            token_obj.delete()  # limpiar
             return Response({"error": "Token expirado"}, status=400)
 
         user = token_obj.user
@@ -257,24 +270,24 @@ class SendPasswordResetEmailView(APIView):
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            # 🔒 Seguridad: no revelar si el correo existe
+            # Seguridad: no revelar si el correo existe
             return Response({
                 "message": "Si el correo existe, se enviará un enlace"
             })
 
-        # 🧹 Eliminar tokens anteriores
+        # Eliminar tokens anteriores
         PasswordResetToken.objects.filter(user=user).delete()
 
-        # 🎟 Crear nuevo token
+        # Crear nuevo token
         token_obj = PasswordResetToken.objects.create(user=user)
 
-        # 🔗 Link al frontend
+        # Link al frontend
         link = f"{settings.FRONTEND_URL}/reset-password/{token_obj.token}"
 
-        # 📧 Configurar Resend
+        # Configurar Resend
         resend.api_key = settings.RESEND_API_KEY
 
-        # ✉️ Enviar correo
+        # Enviar correo
         resend.Emails.send({
             "from": "onboarding@resend.dev",
             "to": user.email,
@@ -313,7 +326,7 @@ class ResetPasswordView(APIView):
             return Response({"error": "Token inválido"}, status=400)
 
         if token_obj.is_expired():
-            token_obj.delete()  # 🔥 limpiar
+            token_obj.delete()  # limpiar
             return Response({"error": "Token expirado"}, status=400)
 
         user = token_obj.user
@@ -324,22 +337,8 @@ class ResetPasswordView(APIView):
 
         return Response({"message": "Contraseña actualizada correctamente"})
     
-import os
-from datetime import datetime
-from django.conf import settings
-from django.core.files import File
-from django.contrib.auth import authenticate
-from django.db import connection
-from django.http import FileResponse
 
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-
-from .models import BackupHistorial
-
-
-# 🔹 GENERAR BACKUP
+# GENERAR BACKUP
 class GenerarBackupView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -349,11 +348,11 @@ class GenerarBackupView(APIView):
         user = request.user
         password = request.data.get("password")
 
-        # 🔒 Solo admin
+        # Solo admin
         if user.rol != "admin":
             return Response({"error": "No autorizado"}, status=403)
 
-        # 🔐 Validar contraseña
+        # Validar contraseña
         if not password:
             return Response({"error": "Debes ingresar tu contraseña"}, status=400)
 
@@ -363,17 +362,17 @@ class GenerarBackupView(APIView):
             return Response({"error": "Contraseña incorrecta"}, status=400)
 
         try:
-            # 📅 Nombre del backup
+            # Nombre del backup
             fecha = datetime.now().strftime("%Y%m%d_%H%M%S")
             nombre_archivo = f"backup_{fecha}.sqlite3"
 
-            # 📂 Ruta DB
+            # Ruta DB
             db_path = settings.DATABASES["default"]["NAME"]
 
-            # ⚠️ Cerrar conexión (SQLite)
+            # Cerrar conexión (SQLite)
             connection.close()
 
-            # 💾 Guardar backup
+            # Guardar backup
             with open(db_path, "rb") as f:
                 backup = BackupHistorial.objects.create(
                     usuario=user,
@@ -391,14 +390,14 @@ class GenerarBackupView(APIView):
             }, status=500)
 
 
-# 🔹 HISTORIAL
+# HISTORIAL
 class HistorialBackupView(APIView):
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
 
-        # 🔒 Solo admin
+        # Solo admin
         if request.user.rol != "admin":
             return Response({"error": "No autorizado"}, status=403)
 
@@ -411,7 +410,7 @@ class HistorialBackupView(APIView):
                 "usuario": b.usuario.username,
                 "fecha": b.fecha.strftime("%Y-%m-%d %H:%M"),
                 "archivo": b.archivo.url if b.archivo else None,
-                "descargado": b.descargado,  # 🔥 nuevo
+                "descargado": b.descargado, 
             }
             for b in backups
         ]
@@ -425,12 +424,12 @@ class DescargarBackupView(APIView):
 
     def get(self, request, backup_id):
 
-        # 🔒 Solo admin
+        # Solo admin
         if request.user.rol != "admin":
             return Response({"error": "No autorizado"}, status=403)
 
         try:
-            # 🔐 Solo sus propios backups
+            # Solo sus propios backups
             backup = BackupHistorial.objects.get(
                 id=backup_id,
                 usuario=request.user
@@ -438,7 +437,7 @@ class DescargarBackupView(APIView):
         except BackupHistorial.DoesNotExist:
             return Response({"error": "Backup no encontrado"}, status=404)
 
-        # ❌ Ya descargado → bloquear
+        # Ya descargado → bloquear
         if backup.descargado:
             return Response(
                 {"error": "Este backup ya fue descargado y está bloqueado"},
@@ -451,7 +450,7 @@ class DescargarBackupView(APIView):
             if not os.path.exists(file_path):
                 return Response({"error": "Archivo no encontrado"}, status=404)
 
-            # 📥 Marcar como descargado
+            # Marcar como descargado
             backup.descargado = True
             backup.save()
 

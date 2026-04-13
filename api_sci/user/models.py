@@ -1,5 +1,4 @@
 from fileinput import filename
-
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 import uuid
@@ -7,6 +6,9 @@ from django.utils import timezone
 from datetime import timedelta
 from django.core.mail import send_mail
 from django.conf import settings
+from django.db import models
+from django.conf import settings
+from django.core.files.storage import FileSystemStorage
 
 class User(AbstractUser):
 
@@ -52,10 +54,6 @@ class PasswordResetToken(models.Model):
         return self.created_at < timezone.now() - timedelta(hours=1)
     
     
-from django.db import models
-from django.conf import settings
-from django.core.files.storage import FileSystemStorage
-
 private_storage = FileSystemStorage(location=settings.PRIVATE_MEDIA_ROOT)
 
 class BackupHistorial(models.Model):

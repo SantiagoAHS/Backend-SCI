@@ -28,7 +28,7 @@ class CustomUserAdmin(UserAdmin):
         'is_superuser',
     )
 
-    # 🔥 DEFINICIÓN COMPLETA (sin duplicados)
+    # DEFINICIÓN COMPLETA (sin duplicados)
     fieldsets = (
         ('Credenciales', {
             'fields': ('username', 'password')
