@@ -1,17 +1,33 @@
 from rest_framework.generics import CreateAPIView, ListAPIView, UpdateAPIView
-from rest_framework.permissions import IsAuthenticated
-from .models import Mantenimiento
-from .serializers import MantenimientoPreventivoSerializer, CambiarEstadoMantenimientoSerializer, MantenimientoListSerializer, EditarMantenimientoSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import status
 from django.shortcuts import get_object_or_404
-from .services import generar_mantenimientos_preventivos
 from django.http import HttpResponse
+from datetime import datetime, timedelta
 import openpyxl
-from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Table,
+    TableStyle,
+    Paragraph,
+    Spacer
+)
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+from .models import Mantenimiento
+from .serializers import (
+    MantenimientoPreventivoSerializer,
+    CambiarEstadoMantenimientoSerializer,
+    MantenimientoListSerializer,
+    EditarMantenimientoSerializer
+)
+from .services import generar_mantenimientos_preventivos
 
 class MantenimientoPreventivoCreateView(CreateAPIView):
     queryset = Mantenimiento.objects.all()
@@ -119,16 +135,6 @@ class ReporteMantenimientosExcelView(APIView):
         return response
     
 
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from django.http import HttpResponse
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_RIGHT
-from datetime import datetime, timedelta
-
 class ReporteMantenimientosPDFView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -140,7 +146,7 @@ class ReporteMantenimientosPDFView(APIView):
 
         mantenimientos = Mantenimiento.objects.select_related("activo").all()
 
-        # 🔍 Filtros
+        # Filtros
         if fecha_inicio:
             fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
             mantenimientos = mantenimientos.filter(fecha_ingreso__gte=fecha_inicio)
@@ -164,7 +170,7 @@ class ReporteMantenimientosPDFView(APIView):
         elements = []
         styles = getSampleStyleSheet()
 
-        # 🎯 Estilos
+        # Estilos
         title_style = ParagraphStyle(
             name="TitleStyle",
             fontSize=18,
@@ -186,7 +192,7 @@ class ReporteMantenimientosPDFView(APIView):
             alignment=TA_RIGHT
         )
 
-        # 🧾 Encabezado
+        # Encabezado
         header_data = [
             [
                 Paragraph("REPORTE DE MANTENIMIENTOS", title_style),
@@ -197,14 +203,14 @@ class ReporteMantenimientosPDFView(APIView):
         header_table = Table(header_data, colWidths=[400, 100])
         elements.append(header_table)
 
-        # 📅 Mostrar filtros
+        # Mostrar filtros
         if fecha_inicio or fecha_fin:
             rango = f"Desde: {fecha_inicio.strftime('%Y-%m-%d') if fecha_inicio else '---'}  |  Hasta: {fecha_fin.strftime('%Y-%m-%d') if fecha_fin else '---'}"
             elements.append(Paragraph(rango, subtitle_style))
 
         elements.append(Spacer(1, 10))
 
-        # 📊 Tabla
+        # Tabla
         data = [[
             "Activo",
             "Tipo",
@@ -226,7 +232,7 @@ class ReporteMantenimientosPDFView(APIView):
 
         table = Table(data, repeatRows=1)
 
-        # 🎨 Estilo profesional
+        # Estilo profesional
         table.setStyle(TableStyle([
             # Header
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#145a32")),
